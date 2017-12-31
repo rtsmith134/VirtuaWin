@@ -12,3 +12,14 @@ tmp/
 *.chm
 *.zip
 *.log
+*.wwdb
+*.tlog
+*.ilk
+*.db
+*.ipch
+*.pch
+*.idb
+*.db-wal
+*.db-shm
+*.opendb
+*.suo
