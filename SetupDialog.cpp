@@ -265,6 +265,9 @@ setupGeneral(HWND hDlg, UINT message, UINT wParam, LONG lParam)
                 SendDlgItemMessage(hDlg, IDC_DESKCYCLE, BM_SETCHECK, 1, 0);
             if(hotkeyMenuLoc)
                 SendDlgItemMessage(hDlg, IDC_HOTKEYMENULOC, BM_SETCHECK, 1, 0);
+
+            if (aggressiveRules)
+                SendDlgItemMessage(hDlg, IDC_AGGRESSIVE, BM_SETCHECK, 1, 0);
             if(winListCompact)
                 SendDlgItemMessage(hDlg, IDC_COMPACTWLIST, BM_SETCHECK, 1, 0);
             if(winMenuCompact)
@@ -337,6 +340,7 @@ setupGeneral(HWND hDlg, UINT message, UINT wParam, LONG lParam)
             
             deskWrap = (SendDlgItemMessage(hDlg, IDC_DESKCYCLE, BM_GETCHECK, 0, 0) == BST_CHECKED) ;
             hotkeyMenuLoc = (SendDlgItemMessage(hDlg, IDC_HOTKEYMENULOC, BM_GETCHECK, 0, 0) == BST_CHECKED) ;
+            aggressiveRules = (SendDlgItemMessage(hDlg, IDC_AGGRESSIVE, BM_GETCHECK, 0, 0) == BST_CHECKED);
             winListCompact = (SendDlgItemMessage(hDlg, IDC_COMPACTWLIST, BM_GETCHECK, 0, 0) == BST_CHECKED) ;
             winMenuCompact = (SendDlgItemMessage(hDlg, IDC_COMPACTWMENU, BM_GETCHECK, 0, 0) == BST_CHECKED) ;
             ctlMenuCompact = (SendDlgItemMessage(hDlg, IDC_COMPACTCMENU, BM_GETCHECK, 0, 0) == BST_CHECKED) ;
@@ -405,6 +409,7 @@ setupGeneral(HWND hDlg, UINT message, UINT wParam, LONG lParam)
                  (wPar == IDC_MENUSHOW)    || (wPar == IDC_COMPACTCMENU)  ||
                  (wPar == IDC_MENUACCESS)  || (wPar == IDC_HOTKEYMENULOC) ||
                  (wPar == IDC_WLUSETTLLN)  || (wPar == IDC_MENUSTICKY)    ||
+                 (wPar == IDC_AGGRESSIVE)  ||
                  (wPar == IDC_DESKTOPNAME  && HIWORD(wParam) == EN_CHANGE)))
         {
             pageChangeMask |= 0x01 ;
@@ -1091,36 +1096,7 @@ setupExpert(HWND hDlg, UINT message, UINT wParam, LONG lParam)
         }
         else if(LOWORD((wParam) == IDC_LOGWINDOWS))
         {   // Log Windows
-            TCHAR cname[vwCLASSNAME_MAX], wname[vwWINDOWNAME_MAX] ;
-            vwWindowBase *wb ;
-            vwWindow *win ;
-            RECT pos ;
-                
-            vwMutexLock();
-            windowListUpdate() ;
-            wb = windowBaseList ;
-            while(wb != NULL)
-            {
-                GetWindowRect(wb->handle,&pos) ;
-                GetClassName(wb->handle,cname,vwCLASSNAME_MAX);
-                if(!GetWindowText(wb->handle,wname,vwWINDOWNAME_MAX))
-                    _tcscpy(wname,vwWTNAME_NONE);
-                if(wb->flags & vwWINFLAGS_MANAGED)
-                {
-                    win = (vwWindow *) wb ;
-                    vwLogBasic((_T("MNG-WIN: %8x Flg %08x %08x %08x Pos %d %d Proc %d %x Own %x Link %x Desk %d\n        Class \"%s\" Title \"%s\"\n"),
-                                (int) wb->handle,(int) wb->flags,(int) GetWindowLong(wb->handle, GWL_STYLE),(int) GetWindowLong(wb->handle, GWL_EXSTYLE),
-                                (int) pos.left, (int) pos.top,(int)win->processId,(int)((win->processNext == NULL) ? 0:win->processNext->handle),
-                                (int) GetWindow(wb->handle,GW_OWNER),(int)((win->linkedNext == NULL) ? 0:win->linkedNext->handle),(int) win->desk,cname,wname)) ;
-                }
-                else
-                    vwLogBasic((_T("%s-WIN: %8x Flg %08x %08x %08x Pos %d %d Own %x\n        Class \"%s\" Title \"%s\"\n"),
-                                (wb->flags & vwWINFLAGS_WINDOW) ? "UNM":"NON",
-                                (int) wb->handle,(int) wb->flags,(int) GetWindowLong(wb->handle, GWL_STYLE),(int) GetWindowLong(wb->handle, GWL_EXSTYLE),
-                                (int) pos.left,(int) pos.top, (int) GetWindow(wb->handle,GW_OWNER), cname, wname)) ;
-                wb = wb->next ;
-            }
-            vwMutexRelease();
+            vwLogWindows(); 
         }
         else if(LOWORD(wParam) == IDC_FOCUS       || LOWORD(wParam) == IDC_USEWINRULES ||
                 LOWORD(wParam) == IDC_DISPLAYICON || LOWORD(wParam) == IDC_DEBUGLOGGING ||

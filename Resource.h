@@ -127,7 +127,7 @@
 #define IDC_WTYPE_OK      1224
 #define IDC_WTYPE_APPLY   1225
 #define IDC_WTYPE_HELP    1226
-
+#define IDC_AGGRESSIVE    2000
 
 #define ID_SETUP         32771   
 #define ID_WTYPE         32772
@@ -150,5 +150,7 @@
 #define ID_DESK_PREV     32789
 #define ID_DESK_NEXT     32790
 #define ID_DESK_N        32791
+#define ID_LOGWINDOWS    32792
 
+#define WM_UPDATE_DIALOG                0x03E1
 #endif
