@@ -81,7 +81,7 @@
     <ResourceCompile Include="..\vwHook.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\vwHook.c" />
+    <ClCompile Include="..\vwHook.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

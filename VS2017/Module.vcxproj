@@ -79,7 +79,7 @@
     <ClInclude Include="..\Module\Messages.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\Module\Module.c" />
+    <ClCompile Include="..\Module\Module.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\Module.txt" />

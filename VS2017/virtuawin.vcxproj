@@ -85,7 +85,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NON_CONFORMING_SWPRINTFS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NON_CONFORMING_SWPRINTFS;WIN10;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <AdditionalOptions>/FS %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
@@ -124,6 +124,19 @@
       <AdditionalDependencies>Comctl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <Text Include="..\ReadMe.txt" />
   </ItemGroup>
@@ -131,19 +144,22 @@
     <ClInclude Include="..\ConfigParameters.h" />
     <ClInclude Include="..\Defines.h" />
     <ClInclude Include="..\DiskRoutines.h" />
+    <ClInclude Include="..\interface.h" />
     <ClInclude Include="..\Messages.h" />
     <ClInclude Include="..\Module\Defines.h" />
+    <ClInclude Include="../Resource.h" />
     <ClInclude Include="..\VirtuaWin.h" />
+    <ClInclude Include="../Win10Desktops.h" />
     <ClInclude Include="..\targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\DiskRoutines.c">
+    <ClCompile Include="..\DiskRoutines.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\ModuleRoutines.c" />
-    <ClCompile Include="..\SetupDialog.c" />
-    <ClCompile Include="..\VirtuaWin.c" />
-    <ClCompile Include="..\WinRuleDialog.c" />
+    <ClCompile Include="..\ModuleRoutines.cpp" />
+    <ClCompile Include="..\SetupDialog.cpp" />
+    <ClCompile Include="..\VirtuaWin.cpp" />
+    <ClCompile Include="..\WinRuleDialog.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vwCommands.def" />
