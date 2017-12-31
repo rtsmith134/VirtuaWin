@@ -3,7 +3,7 @@
 //  winlist.c - VirtuaWin module for restoring lost windows.
 // 
 //  Copyright (c) 1999-2005 Johan Piculell
-//  Copyright (c) 2006-2014 VirtuaWin (VirtuaWin@home.se)
+//  Copyright (c) 2006-2017 VirtuaWin (VirtuaWin@home.se)
 // 
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@
 //  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, 
 //  USA.
 //
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <windows.h>
 #include <commctrl.h>
 #include <string.h>
