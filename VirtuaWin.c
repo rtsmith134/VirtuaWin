@@ -2469,7 +2469,8 @@ static int
 vwTaskbarButtonListUpdate(void)
 {
     int ii, jj, tbCount=0, itemCount, bgsCount, psz=4 ;
-    vwUByte *dp1, *dp2, *bgs;
+    vwUByte *dp1, *dp2;
+    vwUByte	*bgs = NULL;
     DWORD rSize;
     TCITEM tcItem;
     TBBUTTON tbItem;
@@ -5754,6 +5755,7 @@ VirtuaWinInit(HINSTANCE hInstance, LPSTR cmdLine)
     signal(SIGABRT,vwCrashHandler);
     signal(SIGSEGV,vwCrashHandler);
     vwThread = GetCurrentThreadId() ;
+#pragma warning (disable : 4996)    
     
     os.dwOSVersionInfoSize = sizeof(os);
     GetVersionEx(&os);
