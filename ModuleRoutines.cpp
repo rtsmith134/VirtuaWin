@@ -85,7 +85,7 @@ vwModuleLoad(int moduleIdx, TCHAR *path)
     }
     else
     {
-        GetFilename(vwMODULES,0,s1);
+        GetFilename(VWMODULES,0,s1);
         if((s2 = _tcsrchr(s1,'\\')) != NULL)
             s1 = s2 + 1 ;
     }
@@ -184,7 +184,7 @@ vwModulesLoad(void)
     TCHAR buff[MAX_PATH], *ss ;
     HANDLE hFile;
     
-    GetFilename(vwMODULES,0,buff);
+    GetFilename(VWMODULES,0,buff);
     
     // Find first .exe file in modules directory
     if((hFile = FindFirstFile(buff,&exe_file)) != INVALID_HANDLE_VALUE)

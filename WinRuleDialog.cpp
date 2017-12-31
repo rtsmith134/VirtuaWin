@@ -41,12 +41,13 @@ static int deskCount ;
 static HWND initWin ;
 static HINSTANCE initHinst ;
 static vwWindowRule *winRuleCur ;
+static char wtypeNameLabel[vwWTNAME_COUNT] = "CWP";
 
 static void
 windowRuleDialogInitList(HWND hDlg)
 {
     static int ts[3] = { 16, 20, 120 } ;
-    static char wtypeNameLabel[vwWTNAME_COUNT] = "CWP" ;
+
     vwWindowRule *wt ;
     TCHAR buff[388], *ss;
     int ii, jj, kk, winRuleCurIdx=0 ;
@@ -374,7 +375,7 @@ windowRuleDialogAddMod(HWND hDlg, int add)
     
     if(add)
     {
-        if((wt = calloc(1,sizeof(vwWindowRule))) == NULL)
+        if((wt = (vwWindowRule *) calloc(1,sizeof(vwWindowRule))) == NULL)
             mallocErr = 1 ;
         else
         {
@@ -516,7 +517,11 @@ windowRuleDialogFunc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
     {
     case WM_INITDIALOG:
         {
+#ifdef WIN10
+            HANDLE icn;
+#else
             HICON icn;
+#endif
             dialogHWnd = hDlg ;
             icn = LoadImage(initHinst,MAKEINTRESOURCE(IDI_VIRTUAWIN),IMAGE_ICON,
                             GetSystemMetrics(SM_CXSMICON),GetSystemMetrics(SM_CYSMICON),0);

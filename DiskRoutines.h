@@ -26,7 +26,45 @@
 
 #include <windows.h>
 
-typedef enum { vwMODULES, vwVIRTUAWIN_HLP, vwVIRTUAWIN_CFG, vwWINDOW_CFG, vwMODULE_CFG, vwFILE_COUNT } eFileNames;
+typedef enum
+{
+    EFILESNAME_FIRST = 0,
+    VWMODULES = EFILESNAME_FIRST, 
+    VWVIRTUAWIN_HLP, 
+    VWVIRTUAWIN_CFG, 
+    VWWINDOW_CFG, 
+    VWMODULE_CFG,
+    VWFILE_OTHER,
+    VWEND_OF_LIST
+} eFileNames;
+
+
+
+// Overload the ControlType++ operator
+inline eFileNames& operator++(eFileNames& eDOW, int)  // <--- note -- must be a reference
+{
+    const int i = static_cast<int>(eDOW) + 1;
+    eDOW = static_cast<eFileNames>((i) % 5);
+    return eDOW;
+}
+
+// Overload the ControlType-- operator
+inline eFileNames& operator--(eFileNames& type, int)  // <--- note -- must be a reference
+{
+    const int i = static_cast<int>(type) - 1;
+
+    if (i < 0) // Check whether to cycle to last item if number goes below 0
+    {
+        type = static_cast<eFileNames>(4);
+    }
+    else // Else set it to current number -1
+    {
+        type = static_cast<eFileNames>((i) % 5);
+    }
+    return type;
+}
+
+TCHAR * GetString(eFileNames parm);
 
 extern TCHAR *VirtuaWinPath ;
 extern TCHAR *UserAppPath ;

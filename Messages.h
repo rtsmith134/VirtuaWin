@@ -197,4 +197,6 @@
 /* Message, sent by VirtuaWin when the configuration has been updated */
 #define MOD_CFGCHANGE   (WM_USER + 38)
 
+#define MESSAGE_OFFSET  (WM_USER + 60)
+
 #endif

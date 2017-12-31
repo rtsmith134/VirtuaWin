@@ -55,7 +55,7 @@ typedef unsigned short vwUShort ;
 typedef unsigned char  vwUByte ;
 
 #define vwWTNAME_NONE              _T("<None>")
-#define vwWTNAME_COUNT             3
+#define vwWTNAME_COUNT             10
 #define vwWTFLAGS_CN_SVAR          0x00000001
 #define vwWTFLAGS_CN_EVAR          0x00000002
 #define vwWTFLAGS_WN_SVAR          0x00000004
@@ -90,7 +90,7 @@ typedef struct vwWindowRule {
     TCHAR               *name[vwWTNAME_COUNT] ;
     vwUInt               flags ; 
     vwUByte              desk ;
-    vwUByte              nameLen[vwWTNAME_COUNT] ;
+    size_t               nameLen[vwWTNAME_COUNT] ;
 } vwWindowRule ;
 
 /* vwWindow structures for storing information about one window */
@@ -133,7 +133,7 @@ typedef struct vwWindowBase {
     vwUInt               flags ;
 } vwWindowBase;
 
-/* vwWindow - Holds data far a managed window, start must be the same as vwWindowBase */
+/* vwWindow - Holds data for a managed window, start must be the same as vwWindowBase */
 typedef struct vwWindow { 
     /* same as vwWindowBase - start */
     struct vwWindow     *next ;

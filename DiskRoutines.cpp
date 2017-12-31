@@ -34,7 +34,7 @@
 #include "ConfigParameters.h"
 
 #ifndef INVALID_FILE_ATTRIBUTES
-#define INVALID_FILE_ATTRIBUTES	((DWORD)-1)
+#define INVALID_FILE_ATTRIBUTES ((DWORD)-1)
 #endif
 #define VIRTUAWIN_SUBDIR vwVIRTUAWIN_NAME
 
@@ -47,7 +47,7 @@ static TCHAR *vwWindowRuleDefault0Names[vwWindowRuleDefaultCount]={
     _T("IEFrame"),
     _T("CabinetWClass"),
     _T("BaseBar"),
-	_T("Windows.UI.Core.CoreWindow")
+    _T("Windows.UI.Core.CoreWindow")
 } ;
 static vwUInt vwWindowRuleDefaultFlags[vwWindowRuleDefaultCount]={
     (vwWTFLAGS_ENABLED|vwWTFLAGS_MAIN_WIN),
@@ -57,7 +57,7 @@ static vwUInt vwWindowRuleDefaultFlags[vwWindowRuleDefaultCount]={
     (vwWTFLAGS_ENABLED|vwWTFLAGS_HIDEWIN_MOVE|vwWTFLAGS_HIDETSK_TOOLWN),
     (vwWTFLAGS_ENABLED|vwWTFLAGS_HIDEWIN_MOVE|vwWTFLAGS_HIDETSK_TOOLWN),
     (vwWTFLAGS_ENABLED|vwWTFLAGS_DONT_MANAGE),
-	(vwWTFLAGS_ENABLED|vwWTFLAGS_DONT_MANAGE)
+    (vwWTFLAGS_ENABLED|vwWTFLAGS_DONT_MANAGE)
 } ;
 
 TCHAR *VirtuaWinPath=NULL ;
@@ -66,6 +66,19 @@ TCHAR *UserAppPath=NULL ;
 char *VirtuaWinPathStr=NULL ;
 char *UserAppPathStr=NULL ;
 #endif
+
+TCHAR * GetString(eFileNames parm)
+{
+	switch (parm)
+	{
+	case VWMODULES:  		return (_T("modules\\*.exe"));
+	case VWVIRTUAWIN_HLP:	return (_T("virtuawin.chm"));
+	case VWVIRTUAWIN_CFG:	return (_T("virtuawin.cfg"));
+	case VWWINDOW_CFG:		return (_T("window.cfg"));
+	case VWMODULE_CFG:		return (_T("module.cfg"));
+	default:				return (_T(""));
+	}
+}
 
 /**************************************************
  * Gets the local application settings path for the current user.
@@ -77,12 +90,12 @@ static void getUserAppPath(TCHAR *path)
     TCHAR buff[MAX_PATH], *ss, *se, cc ;
     FILE *fp ;
     int len ;
-    
+
     path[0] = '\0' ;
-    
+
     /* look for a userpath.cfg file */
-    _tcscpy(buff,VirtuaWinPath) ;
-    _tcscat(buff,_T("userpath.cfg")) ;
+    _tcscpy_s(buff,_countof(buff),VirtuaWinPath) ;
+    _tcscat_s(buff,_countof(buff),_T("userpath.cfg")) ;
     if((fp = _tfopen(buff,_T("r"))) != NULL)
     {
         if((_fgetts(buff,MAX_PATH,fp) != NULL) && (buff[0] != '\0'))
@@ -119,12 +132,18 @@ static void getUserAppPath(TCHAR *path)
         }
         fclose(fp) ;
     }
+#ifdef WIN10
+    // The section below uses SHGetSpecialFolder and SHGetMalloc
+    // neither of which is available in Windows 10
+#else
     if(path[0] == '\0')
     {
+        // SHGetSpecialFolderLocation  is only available Windows  2000.
         if(SUCCEEDED(SHGetSpecialFolderLocation(NULL,CSIDL_APPDATA,&idList)) && (idList != NULL))
         {
             IMalloc *im ;
             SHGetPathFromIDList(idList,path);
+            // SHGetMalloc  is only available Windows Vista and Windows Server 2003.
             if(SUCCEEDED(SHGetMalloc(&im)) && (im != NULL))
             {
                 im->lpVtbl->Free(im,idList) ;
@@ -142,6 +161,7 @@ static void getUserAppPath(TCHAR *path)
             path[len] = '\0' ;
         }
     }
+#endif
 }
 
 /************************************************
@@ -159,18 +179,23 @@ static void getUserAppPath(TCHAR *path)
 void
 GetFilename(eFileNames filetype, int location, TCHAR *outStr)
 {
-    static TCHAR *subPath[vwFILE_COUNT] = {
-        _T("modules\\*.exe"), _T("virtuawin.chm"), _T("virtuawin.cfg"), _T("window.cfg"), _T("module.cfg")
+    static int vwFILE_COUNT = 5;
+    static TCHAR *subPath[5] = {
+        _T("modules\\*.exe"),
+        _T("virtuawin.chm"),
+        _T("virtuawin.cfg"),
+        _T("window.cfg"),
+        _T("module.cfg")
     };
     DWORD len ;
-    
+
     if(UserAppPath == NULL)
     {
         /* initialization of paths, find the installation and user paths,
          * exit on failure - initialization happens so early on it is safe to
          * simply exit */
         TCHAR path[MAX_PATH], *ss ;
-        
+
         GetModuleFileName(GetModuleHandle(NULL),path,MAX_PATH) ;
         ss = _tcsrchr(path,'\\') ;
         ss[1] = '\0' ;
@@ -196,12 +221,12 @@ GetFilename(eFileNames filetype, int location, TCHAR *outStr)
             UserAppPathStr = strdup((char *) path) ;
 #endif
     }
-    
+
     _tcsncpy(outStr,(location) ? UserAppPath:VirtuaWinPath, MAX_PATH);
-    if(filetype < vwFILE_COUNT)
+    if(filetype <= VWMODULE_CFG)
     {
         len = MAX_PATH - _tcslen(outStr) ;
-        _tcsncat(outStr,subPath[filetype],len) ;
+        _tcsncat(outStr,GetString(filetype),len) ;
     }
 }
 
@@ -215,9 +240,9 @@ loadDisabledModules(vwDisModule *theDisList)
     TCHAR buff[MAX_PATH];
     int len, nOfDisMod = 0;
     FILE *fp;
-    
-    GetFilename(vwMODULE_CFG,1,buff);
-    
+
+    GetFilename(VWMODULE_CFG,1,buff);
+
     if((fp = _tfopen(buff,_T("r"))) != NULL)
     {
         while(_fgetts(buff,MAX_PATH,fp) != NULL)
@@ -246,8 +271,8 @@ saveDisabledList(int theNOfModules, vwModule *theModList)
 {
     TCHAR DisabledFileList[MAX_PATH];
     FILE* fp;
-    
-    GetFilename(vwMODULE_CFG,1,DisabledFileList);
+
+    GetFilename(VWMODULE_CFG,1,DisabledFileList);
     if(!(fp = _tfopen(DisabledFileList,_T("w"))))
         MessageBox(hWnd,_T("Error saving disabled module state"),vwVIRTUAWIN_NAME _T(" Error"),MB_ICONERROR);
     else
@@ -271,7 +296,7 @@ loadWindowConfig(void)
     TCHAR buff[1024], *ss ;
     int ii, ll, mallocErr=0 ;
     FILE *fp ;
-    
+
     if(windowRuleList != NULL)
     {
         /* free current list first */
@@ -294,8 +319,8 @@ loadWindowConfig(void)
             win = win->next ;
         }
     }
-    
-    GetFilename(vwWINDOW_CFG,1,buff);
+
+    GetFilename(VWWINDOW_CFG,1,buff);
     if((fp = _tfopen(buff,_T("r"))) != NULL)
     {
         pwt = wt = NULL ;
@@ -304,7 +329,7 @@ loadWindowConfig(void)
             if(!_tcsncmp(buff,_T("flags# "),7))
             {
                 /* start of a new windowRule */
-                if((wt = calloc(1,sizeof(vwWindowRule))) == NULL)
+                if((wt = (vwWindowRule *) calloc(1,sizeof(vwWindowRule))) == NULL)
                 {
                     mallocErr = 1 ;
                     break ;
@@ -348,7 +373,7 @@ loadWindowConfig(void)
         ii = vwWindowRuleDefaultCount ;
         while(--ii >= 0)
         {
-            if(((wt = calloc(1,sizeof(vwWindowRule))) == NULL) ||
+            if(((wt = (vwWindowRule *) calloc(1,sizeof(vwWindowRule))) == NULL) ||
                ((wt->name[0] = _tcsdup(vwWindowRuleDefault0Names[ii])) == NULL))
             {
                 mallocErr = 1 ;
@@ -374,8 +399,8 @@ saveWindowConfig(void)
     vwWindowRule *wt ;
     FILE *fp ;
     int ii ;
-    
-    GetFilename(vwWINDOW_CFG,1,fname);
+
+    GetFilename(VWWINDOW_CFG,1,fname);
     if((fp = _tfopen(fname,_T("w"))) == NULL)
         MessageBox(NULL,_T("Error writing window.cfg file"),vwVIRTUAWIN_NAME _T(" Error"),MB_ICONERROR);
     else
@@ -437,8 +462,9 @@ loadVirtuawinConfig(void)
     TCHAR buff[MAX_PATH], buff2[2048], *ss ;
     FILE *fp, *wfp;
     int ii, jj, ll, hk[4] ;
-    
-    GetFilename(vwVIRTUAWIN_CFG,1,buff);
+
+    eFileNames filename;
+    GetFilename(VWVIRTUAWIN_CFG,1,buff);
     if(GetFileAttributes(buff) == INVALID_FILE_ATTRIBUTES)
     {
         static char *defaultCfg="ver# 2\nhotkeyCount# 6\nhotkey1# 37 19 1 0\nhotkey2# 39 19 2 0\nhotkey3# 38 19 3 0\nhotkey4# 40 19 4 0\nhotkey5# 37 25 13 0\nhotkey6# 39 25 15 0\ndesktopNameCount# 0\n" ;
@@ -463,19 +489,20 @@ loadVirtuawinConfig(void)
             }
             *ss = '\\' ;
         }
-        
+
         /* If the user path is not the installation path then copy all the
          * config files across to the user area */
         fp = NULL ;
-        ii = vwFILE_COUNT ;
+        filename = VWFILE_OTHER;
+        filename--;
         if(_tcsicmp(VirtuaWinPath,UserAppPath))
         {
-            while(--ii >= vwVIRTUAWIN_CFG)
+            while(filename >= VWVIRTUAWIN_CFG)
             {
-                GetFilename(ii,0,buff);
+                GetFilename(filename,0,buff);
                 if((fp = _tfopen(buff,_T("rb"))) != NULL)
                 {
-                    GetFilename(ii,1,buff2);
+                    GetFilename(filename,1,buff2);
                     if((wfp = _tfopen(buff2,_T("wb"))) == NULL)
                         break ;
                     for(;;)
@@ -492,22 +519,24 @@ loadVirtuawinConfig(void)
                     if((fclose(wfp) != 0) || (jj < 0))
                         break ;
                 }
-            }
+                filename--;
+            } // while
         }
         else
         {
             /* must create the main VirtuaWin.cfg file */
-            ii = vwVIRTUAWIN_CFG - 1 ;
+            filename = VWVIRTUAWIN_CFG ;
+            filename--;
             fp = NULL ;
         }
-        GetFilename(vwVIRTUAWIN_CFG,1,buff);
+        GetFilename(VWVIRTUAWIN_CFG,1,buff);
         /* check a main config file has been copied, if not create a dummy one */
-        if((ii < vwVIRTUAWIN_CFG) && (fp == NULL) &&
+        if((filename < VWVIRTUAWIN_CFG) && (fp == NULL) &&
            (((wfp = _tfopen(buff,_T("wb"))) == NULL) ||
             (fwrite(defaultCfg,strlen(defaultCfg),1,wfp) != 1) || (fclose(wfp) != 0)))
-            ii = vwVIRTUAWIN_CFG ;
+            filename = VWVIRTUAWIN_CFG ;
         /* check we did not break out due to an error and virtuawin.cfg was found */
-        if(ii >= vwVIRTUAWIN_CFG)
+        if(filename >= VWVIRTUAWIN_CFG)
         {
             MessageBox(hWnd,_T("Error occurred creating new user configuration, please check installation & file permissions.\nIf you continue to have problems, send e-mail to:\n\n    ") vwVIRTUAWIN_EMAIL,vwVIRTUAWIN_NAME _T(" Error"),MB_ICONERROR);
             exit(1) ;
@@ -515,7 +544,7 @@ loadVirtuawinConfig(void)
         _stprintf(buff2,_T("Welcome to %s\n\nA new user configuration has been created in directory:\n\n    %s\n\nRight click on tray icon to access the Setup dialog."),vwVIRTUAWIN_NAME_VERSION,UserAppPath) ;
         MessageBox(hWnd,buff2,vwVIRTUAWIN_NAME,MB_ICONINFORMATION);
     }
-    
+
     /* Is file readable at all? */
     if((fp = _tfopen(buff,_T("r"))) == NULL)
     {
@@ -536,7 +565,7 @@ loadVirtuawinConfig(void)
     {
         /* Nope, there was no version */
         int kk, hkc[5], hks[3] ;
-        
+
         mouseEnable = ii ;
         hotkeyCount = 0 ;
         vwConfigReadInt(fp,buff2,ii,mouseDelay);
@@ -767,8 +796,8 @@ saveVirtuawinConfig(void)
     TCHAR VWConfigFile[MAX_PATH];
     FILE* fp;
     int ii, jj ;
-    
-    GetFilename(vwVIRTUAWIN_CFG,1,VWConfigFile);
+
+    GetFilename(VWVIRTUAWIN_CFG,1,VWConfigFile);
     if((fp = _tfopen(VWConfigFile,_T("w"))) == NULL)
     {
         MessageBox(NULL,_T("Error writing virtuawin.cfg file"),vwVIRTUAWIN_NAME _T(" Error"),MB_ICONERROR);

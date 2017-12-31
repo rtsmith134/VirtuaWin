@@ -29,6 +29,7 @@
 #include <tchar.h>
 
 #include "Defines.h"
+#include "Resource.h"
 
 /* externally accessible variables */
 extern HWND hWnd;                                 // The handle to VirtuaWin 

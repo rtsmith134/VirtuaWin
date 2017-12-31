@@ -1,6 +1,6 @@
 //
 //  VirtuaWin - Virtual Desktop Manager (virtuawin.sourceforge.net)
-//  VirtuaWin.c - Core VirtuaWin routines.
+//  VirtuaWin.cpp - Core VirtuaWin routines.
 // 
 //  Copyright (c) 1999-2005 Johan Piculell
 //  Copyright (c) 2006-2014 VirtuaWin (VirtuaWin@home.se)
@@ -27,6 +27,9 @@
 #include "ConfigParameters.h"
 #include "Messages.h"
 #include "Resource.h"
+#ifdef WIN10
+#include "win10.h"
+#endif
 
 /* Get the list of hotkey commands */
 #define VW_COMMAND(a, b, c, d) a = b ,
@@ -111,7 +114,7 @@ HWND hWnd;                                   // handle to VirtuaWin
 DWORD vwThread;                              // ID of main VW thread
 HANDLE hMutex;
 FILE *vwLogFile ;
-vwUByte vwDisabled=0;	                     // if VirtuaWin enabled or not, see vwIsEnabled macro above
+vwUByte vwDisabled=0;                        // if VirtuaWin enabled or not, see vwIsEnabled macro above
 
 int desktopWorkArea[2][4] ;
 
@@ -129,13 +132,13 @@ vwDisModule   disabledModules[MAXMODULES*2]; // list with disabled modules
 UINT RM_Shellhook;
 UINT RM_TaskbarCreated;         // Message used to broadcast taskbar restart 
 
-HINSTANCE hInst;		// current instance
+HINSTANCE hInst;        // current instance
 HWND taskHWnd;                  // handle to taskbar
-HWND desktopHWnd;		// handle to the desktop window
+HWND desktopHWnd;       // handle to the desktop window
 DWORD desktopThread;            // thread ID of desktop window
-HWND deskIconHWnd;		// handle to the desktop window holding the icons
-HWND lastFGHWnd;		// handle to the last foreground window
-HWND dialogHWnd;       		// handle to the setup dialog, NULL if not open
+HWND deskIconHWnd;      // handle to the desktop window holding the icons
+HWND lastFGHWnd;        // handle to the last foreground window
+HWND dialogHWnd;            // handle to the setup dialog, NULL if not open
 int dialogPos[2];
 vwUByte dialogOpen;         
 vwUByte initialized;
@@ -170,9 +173,9 @@ int lastDesk = 1;
 vwUByte lastDeskNoDelay = 0 ;          
 vwUByte mouseKnock = 2 ;
 vwUByte hiddenWindowAct = 2 ;
-vwUByte taskButtonAct = 0 ;		
+vwUByte taskButtonAct = 0 ;
 vwUByte vwLogFlag = 0 ;
-vwUByte releaseFocus = 0 ;	
+vwUByte releaseFocus = 0 ;
 vwUByte refreshOnWarp = 0 ;     
 vwUByte initialDesktop = 0 ;          
 vwUByte deskWrap = 0 ;          
@@ -211,7 +214,7 @@ int     taskbarButtonListSize = 0 ;
 HANDLE mouseThread;                          // Handle to the mouse thread
 vwUByte mouseEnabled = 1 ;                   // Status of the mouse thread, always running at startup 
 vwUByte mouseEnable = 6 ;                    // Required mouse support
-vwUByte isDragging;	                     // if we are currently dragging a window
+vwUByte isDragging;                          // if we are currently dragging a window
 HWND    dragHWnd;                            // handle to window being dragged
 vwUByte mouseWarp = 0 ;
 vwUByte mouseModifierUsed = 0 ;
@@ -231,13 +234,14 @@ BITMAPINFO  deskImageInfo ;
 void       *deskImageData=NULL ;
 
 enum {
-    OSVERSION_UNKNOWN=0,
-    OSVERSION_64BIT=1,
-    OSVERSION_31=2,
-    OSVERSION_9X=4,
-    OSVERSION_NT=6,
-    OSVERSION_2000=8,
-    OSVERSION_XP=10
+    OSVERSION_UNKNOWN=1,
+    OSVERSION_64BIT=2,
+    OSVERSION_31=4,
+    OSVERSION_9X=8,
+    OSVERSION_NT=16,
+    OSVERSION_2000=32,
+    OSVERSION_XP=64,
+    OSVERSION_WIN10 = 128
 } ;
 int osVersion ;
 
@@ -715,20 +719,29 @@ vwIconLoad(void)
     int xIcon = GetSystemMetrics(SM_CXSMICON);
     int yIcon = GetSystemMetrics(SM_CYSMICON);
     int ii, iconId, iconCount ;
-    TCHAR buff[16], *ss ;
+    TCHAR buff[128], *ss ;
     
     /* must setup desktopUsed array first, this is used elsewhere */
+#ifdef WIN10
+    iconCount = 19;
+    iconId = IDI_ST_0;    // Use ICONS that have numeric '1' to '20' in them
+#else
+    iconCount = nDesks;
+#endif
     memset(desktopUsed+1,1,nDesks) ;
     memset(desktopUsed+nDesks+1,0,vwDESKTOP_SIZE-nDesks-1) ;
-    ii = hotkeyCount ;
+    ii = hotkeyCount;
+#ifdef WIN10
+    // The virtuawin hotkey handler does not apply to Windows 10
+#else
     while(--ii >= 0)
         if((hotkeyList[ii].command == vwCMD_NAV_MOVE_DESKTOP) &&
            (hotkeyList[ii].desk < vwDESKTOP_SIZE))
             desktopUsed[hotkeyList[ii].desk] = 1 ;
-    
+
     if(nDesksY != 2 || nDesksX != 2) // if 2 by 2 mode
     {
-        iconId = IDI_ST_0 ;
+        iconId = IDI_ST_0 ;    // Use ICONS that have numeric '1' to '20' in them
         iconCount = 9 ;
     }
     else
@@ -739,7 +752,9 @@ vwIconLoad(void)
             iconId = IDI_ST_DIS_1 ;
         iconCount = 4 ;
     }
-    _tcscpy(buff,_T("icons/")) ;
+#endif
+    _tcscpy_s(buff, _countof(buff),_T("icons/")) ;
+    int remain;
     for(ii = 0 ; ii<vwDESKTOP_SIZE ; ii++)
     {
         icons[ii] = NULL ;
@@ -749,12 +764,13 @@ vwIconLoad(void)
             ss = buff+6 ;
             if(ii > 9)
             {
-                *ss++ = (ii/10)+'0' ;
-                *ss++ = (ii%10)+'0' ;
+                *ss++ = _T((ii/10)+'0') ;
+                *ss++ = _T((ii%10)+'0') ;
             }
             else
-                *ss++ = ii+'0' ;
-            _tcscpy(ss,_T(".ico")) ;
+                *ss++ = _T(ii+'0') ;
+            remain = ss - &buff[0] + _countof(buff);
+            _tcscpy_s(ss, remain, _T(".ico")) ;
             if(((icons[ii] = (HICON) LoadImage(hInst, buff, IMAGE_ICON, xIcon, yIcon, LR_LOADFROMFILE)) == NULL) &&
                ((ii > iconCount) ||
                 ((icons[ii] = (HICON) LoadImage(hInst, MAKEINTRESOURCE(iconId+ii), IMAGE_ICON, xIcon, yIcon, 0)) == NULL)) &&
@@ -812,6 +828,9 @@ vwHookSetup(void)
     }
 }
 
+#ifdef WIN10
+   // Windows 10 has its out hotkey handler for virtual desktops 
+#else
 /************************************************
  * Registering hotkeys - don't complain if registering toggle enable or boss keys as these are not always unregistered 
  */
@@ -843,7 +862,8 @@ vwHotkeyRegister(int warnAll)
         }
     }
 }
-
+#endif
+#ifndef WIN10
 /***************************************************************************************************
  * Unregistering hotkeys - dont unregister the toggle enable state or boss keys unless exiting
  */
@@ -861,7 +881,7 @@ vwHotkeyUnregister(int unregAll)
                 UnregisterHotKey(hWnd,hotkeyList[ii].atom) ;
     }
 }
-
+#endif
 /***************************************************************************************************
  * Get screen width and height and store values in global variables
  */
@@ -1066,7 +1086,7 @@ createDeskImage(int deskNo, int createDefault)
     }
     
     /* Create the desk_#.bmp file */ 
-    GetFilename(vwFILE_COUNT,1,fname) ;
+    GetFilename(VWFILE_OTHER,1,fname) ;
     _stprintf(fname+_tcslen(fname),_T("desk_%d.bmp"),deskNo) ;
     if(GetDIBits(bitmapDC,deskImageBitmap,0,deskImageInfo.bmiHeader.biHeight,deskImageData,&deskImageInfo,DIB_RGB_COLORS) &&
        ((fp = _tfopen(fname,_T("wb+"))) != NULL))
@@ -1190,7 +1210,7 @@ showHelp(HWND aHWnd, TCHAR *topic)
     PROCESS_INFORMATION pi;  
 
     _tcscpy(buff,_T("\"hh\" mk:@MSITStore:")) ;
-    GetFilename(vwVIRTUAWIN_HLP,0,buff+19);
+    GetFilename(VWVIRTUAWIN_HLP,0,buff+19);
     if(topic != NULL)
     {
         _tcscat(buff,_T("::/VirtuaWin_")) ;
@@ -1286,7 +1306,7 @@ vwWindowBaseCreate(vwUInt flags, HWND hwnd)
             memset(win,0,sizeof(vwWindow)) ;
         }
         else
-            win = calloc(1,sizeof(vwWindow)) ;
+            win = (vwWindow *) calloc(1,sizeof(vwWindow)) ;
         wb = (vwWindowBase *) win ;
     }
     else
@@ -1297,7 +1317,7 @@ vwWindowBaseCreate(vwUInt flags, HWND hwnd)
             memset(wb,0,sizeof(vwWindowBase)) ;
         }
         else
-            wb = calloc(1,sizeof(vwWindowBase)) ;
+            wb = (vwWindowBase *) calloc(1,sizeof(vwWindowBase)) ;
         win = NULL ;
     }
     if(wb == NULL)
@@ -1446,7 +1466,8 @@ vwWindowRuleFind(HWND hwnd, vwWindowRule *owt)
 {
     TCHAR name[vwWTNAME_COUNT][MAX_PATH] ;
     vwWindowRule *wt ;
-    int nameLen[vwWTNAME_COUNT], infoGot=0, ii, jj, bi ;
+    size_t nameLen[vwWTNAME_COUNT];
+    int infoGot=0, ii, jj, bi ;
     
     if(owt != NULL)
     {
@@ -1773,10 +1794,23 @@ WindowFullRedraw(HWND theWin)
 static int
 vwWindowSetDesk(vwWindow *win, int theDesk, vwUByte move, vwUByte setActive)
 {
-    vwWindow *ewin ;
-    HWND activeHWnd ;
-    vwUInt show ;
-    
+#ifdef WIN10 
+    HWND activeHWnd;
+    int  rc;
+
+    //Retrieves a handle to the foreground window(the window with which the user is currently working). 
+    //The system assigns a slightly higher priority to the thread that creates the foreground window than it does to other threads.
+    activeHWnd = GetForegroundWindow();
+    vwLogBasic((_T("Set window desk: %x %d %d (%x)\n"), (int)win->handle, theDesk, move, (int)activeHWnd));
+
+    rc = MoveWindowToDesktopNumber((HWND)win->handle, (theDesk - 1));
+    return rc;
+#else
+    vwWindow *ewin;
+    HWND activeHWnd;
+    vwUInt show;
+    //Retrieves a handle to the foreground window(the window with which the user is currently working). 
+    //The system assigns a slightly higher priority to the thread that creates the foreground window than it does to other threads.
     activeHWnd = GetForegroundWindow() ;
     vwLogBasic((_T("Set window desk: %x %d %d (%x)\n"),(int) win->handle,theDesk,move,(int) activeHWnd)) ;
     
@@ -1836,6 +1870,7 @@ vwWindowSetDesk(vwWindow *win, int theDesk, vwUByte move, vwUByte setActive)
         setForegroundWin(activeHWnd,0) ;
     }
     return 1 ;
+#endif
 }
 
 /************************************************
@@ -2070,18 +2105,26 @@ windowListUpdate(void)
     vwWindowBase *wb, *wbn ;
     vwWindow *nw, *win, *ww ;
     RECT pos ;
+    int  rc;
     TCHAR cname[vwCLASSNAME_MAX], wname[vwWINDOWNAME_MAX] ;
     int newDesk=0, j, hungCount=0 ;
     
     vwLogVerbose((_T("Updating winList fgw %x tpw %x\n"),(int) GetForegroundWindow(),(int) GetTopWindow(NULL))) ;
     /* We now own the mutex. */
+#ifdef WIN10
+    currentDesk = GetCurrentDesktopNumber()+1;
+#endif
     wb = windowBaseList ;
     while(wb != NULL)
     {
         wb->flags &= ~vwWINFLAGS_FOUND ;
         wb = vwWindowBaseGetNext(wb) ;
     }
-    // Get all windows
+    //  Get Handles to all top level windows
+    //    BOOL WINAPI EnumWindows(
+    //    _In_ WNDENUMPROC lpEnumFunc,
+    //    _In_ LPARAM      lParam
+    //);
     if(EnumWindows(enumWindowsProc,0) == 0)
     {
         vwLogBasic((_T("Call to EnumWindows failed: %x\n"),GetLastError())) ;
@@ -2108,8 +2151,20 @@ windowListUpdate(void)
         while(win != NULL)
         {
             wt = (vwWindowRule *) win->zOrder[0] ;
+
+#ifdef WIN10
+            if (osVersion & OSVERSION_WIN10) {
+                rc = GetWindowDesktopNumber(win->handle);
+                if (rc >= 0)
+                    win->desk = (rc+1);
+                else
+                    win->desk = currentDesk;
+                win->zOrder[win->desk] = 1;
+            }
+#else
             win->desk = currentDesk;
             win->zOrder[currentDesk] = 1;
+#endif
             if(wt != NULL)
             {
                 win->flags |= (wt->flags & (vwWTFLAGS_HIDEWIN_MASK|vwWTFLAGS_HIDETSK_MASK|vwWTFLAGS_STICKY|vwWTFLAGS_MAIN_WIN|vwWTFLAGS_GROUP_APP|vwWTFLAGS_HWACT_MASK)) ;
@@ -2225,6 +2280,8 @@ windowListUpdate(void)
         }
         /* finally we can apply any auto stick or assignments */
         win = nw ;
+        // In Windows10 this second is not needed because Windows keeps track of the desktops itself. 
+#ifndef WIN10
         while(win != NULL)
         {
             win->flags |= vwWINFLAGS_INITIALIZED ;
@@ -2261,6 +2318,7 @@ windowListUpdate(void)
             }
             win = vwWindowGetNext(win) ;
         }
+#endif
         if(vwLogEnabled())
         {
             win = nw ;
@@ -2270,7 +2328,7 @@ windowListUpdate(void)
                 GetClassName(win->handle,cname,vwCLASSNAME_MAX);
                 if(!GetWindowText(win->handle,wname,vwWINDOWNAME_MAX))
                     _tcscpy(wname,vwWTNAME_NONE);
-                vwLogBasic((_T("Got new window %8x %08x %08x Flg %x Desk %d Proc %d %x Link %x Pos %d %d\n  Class \"%s\" Title \"%s\"\n"),
+                vwLogBasic((_T("windowListUpdate: Got new window %8x %08x %08x Flg %x Desk %d Proc %d %x Link %x Pos %d %d\n  Class \"%s\" Title \"%s\"\n"),
                             (int)win->handle,(int)GetWindowLong(win->handle, GWL_STYLE),(int)win->exStyle,
                             (int)win->flags,(int)win->desk,(int)win->processId,(int)((win->processNext == NULL) ? 0:win->processNext->handle),
                             (int)((win->linkedNext == NULL) ? 0:win->linkedNext->handle),(int) pos.left,(int) pos.top,cname,wname)) ;
@@ -2438,7 +2496,9 @@ shutDown(void)
     if(vwHookInstalled)
         vwHookUninstallFunc() ;
     vwModulesPostMessage(MOD_QUIT, 0, 0);
+#ifndef WIN10
     vwHotkeyUnregister(1);
+#endif
     // gather all windows quickly & remove icon
     vwWindowShowAll(0) ;
     Shell_NotifyIcon(NIM_DELETE, &nIconD);
@@ -2479,7 +2539,7 @@ vwTaskbarButtonListUpdate(void)
     if(taskbarBCType == vwTASKBAR_BC_WIN7)
     {
         /* Win7: Msg result -> the dpa -> button groups -> button group -> buttons */
-	    if((dp1 = (vwUByte *) GetWindowLong(taskbarBCHWnd,DWL_MSGRESULT)) == NULL)
+        if((dp1 = (vwUByte *) GetWindowLong(taskbarBCHWnd,DWL_MSGRESULT)) == NULL)
         {
             vwLogBasic((_T("Win7BC Err0: %d\n"),GetLastError())) ;
             return 0 ;
@@ -2496,7 +2556,7 @@ vwTaskbarButtonListUpdate(void)
            !vwProcessMemoryRead(taskbarProcHdl,dp2+psz,&bgs, sizeof(void *),rSize))
         {
             if(bgs != NULL)
-				vwLogBasic((_T("Win7BC Err1: %p %p -> %d %p\n"),dp1,dp2,bgsCount,bgs)) ;
+                vwLogBasic((_T("Win7BC Err1: %p %p -> %d %p\n"),dp1,dp2,bgsCount,bgs)) ;
             return 0 ;
         }
         itemCount = 0 ;
@@ -2531,7 +2591,7 @@ vwTaskbarButtonListUpdate(void)
         if(taskbarButtonList != NULL)
             free(taskbarButtonList) ;
         taskbarButtonListSize = itemCount + 0x10 ;
-        taskbarButtonList = malloc(taskbarButtonListSize * sizeof(HWND)) ;
+        taskbarButtonList = (HWND *) malloc(taskbarButtonListSize * sizeof(HWND)) ;
         if(taskbarButtonList == NULL)
         {
             taskbarButtonListSize = 0 ;
@@ -2606,15 +2666,23 @@ vwTaskbarButtonListUpdate(void)
 }
 /************************************************
  * Callback for new window assignment and taskbar fix (removes bogus reappearances of tasks on win9x).
+ FIXME rsmith.  On Windows 10 we don't need to monitor the timer so much because programs can be moved between desktops
+ indepently of this program. 
  */
 static VOID CALLBACK
 monitorTimerProc(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
 {
     static vwUInt mtCount=0 ;
-    vwWindow *win ;
-    int ii, hungCount ;
-    
+#ifndef WIN10
+    int hungCount ;
+#endif    
     timerCounter++ ;
+
+#ifdef WIN10
+    // In windows 10 we need to query which desktop we are on as Virtawin does not keep track.
+    currentDesk = GetCurrentDesktopNumber() + 1;
+#endif
+
     if(((deskIconHWnd == NULL) || ((hwnd=taskHWnd) == NULL)) && (noTaskbarCheck == 0) && ((timerCounter & 0x3) == 0))
     {
         vwTaskbarHandleGet() ;
@@ -2627,6 +2695,8 @@ monitorTimerProc(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
             noTaskbarCheck = 2 ;
         }
     }
+
+#ifndef WIN10
     vwMutexLock();
     if((timerCounter == 2) && taskbarBCType && useDynButtonRm)
     {
@@ -2651,6 +2721,8 @@ monitorTimerProc(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
                 PostMessage(taskHWnd,RM_Shellhook,HSHELL_WINDOWDESTROYED,(LPARAM) win->handle) ;
         }
     }
+#endif
+#ifndef WIN10
     hungCount = windowListUpdate() ;
     if((ii = (hungCount >> 16)) > 0)
     {
@@ -2703,6 +2775,8 @@ monitorTimerProc(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
         mtCount = 0 ;
         vwIconSet(currentDesk,0);
     }
+#endif
+#ifndef WIN10
 
     if(taskbarFixRequired)
     {
@@ -2715,6 +2789,7 @@ monitorTimerProc(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
         }
     }
     vwMutexRelease();
+#endif
 }
 
 /*************************************************
@@ -3024,7 +3099,12 @@ ichangeDeskProc(int newDesk, WPARAM msgWParam)
     }
     
     /* reset the monitor timer to give the system a chance to catch up first */
+#ifdef WIN10
+    // On Windows 10 we do not need a timer because all changes in the virtual desktop
+    // send a message
+#else
     SetTimer(hWnd, 0x29a, 250, monitorTimerProc);
+#endif
     vwMutexRelease();
     
     if(dialogOpen)
@@ -3070,6 +3150,14 @@ ichangeDeskTimeoutProc(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
 static int
 changeDesk(int newDesk, WPARAM msgWParam)
 {
+    ichangeWParam = 0;
+#ifdef WIN10
+    if (osVersion & OSVERSION_WIN10) 
+    {
+        GoToDesktopNumber(newDesk-1);
+        currentDesk = newDesk;
+    }
+#else
     MSG msg ;
     
     ichangeDesk = 0 ;
@@ -3104,6 +3192,7 @@ changeDesk(int newDesk, WPARAM msgWParam)
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
+#endif
     return ichangeWParam ;
 }
 
@@ -3126,6 +3215,10 @@ static int
 stepDelta(int delta)
 {
     int newDesk ;
+#ifdef WIN10
+    // In windows 10 we need to query which desktop we are on as Virtawin does not keep track.
+    currentDesk = GetCurrentDesktopNumber() + 1;
+#endif
     if(currentDesk > nDesks)
         /* on a private desktop - go to first if delta is +ve, last otherwise */
         newDesk = (delta < 0) ? nDesks:1 ;
@@ -3144,7 +3237,6 @@ stepDelta(int delta)
     return changeDesk(newDesk,MOD_CHANGEDESK);
 }
 
-
 /*************************************************
  * Step on desk to the right
  */
@@ -3152,7 +3244,12 @@ static int
 stepRight(void)
 {
     int deskX, deskY=currentDeskY ;
-    
+
+#ifdef WIN10
+    // In windows 10 we need to query which desktop we are on as Virtawin does not keep track.
+    currentDesk = GetCurrentDesktopNumber() + 1;
+#endif
+
     if(currentDesk > nDesks)
     {   /* on a private desktop - go to first */
         deskX = 1;
@@ -3174,7 +3271,12 @@ static int
 stepLeft(void)
 {
     int deskX, deskY=currentDeskY ;
-    
+
+#ifdef WIN10
+    // In windows 10 we need to query which desktop we are on as Virtawin does not keep track.
+    currentDesk = GetCurrentDesktopNumber() + 1;
+#endif
+
     if(currentDesk > nDesks)
     {   /* on a private desktop - go to last */
         deskX = nDesksX;
@@ -3196,7 +3298,12 @@ static int
 stepDown(void)
 {
     int deskX=currentDeskX, deskY ;
-    
+
+#ifdef WIN10
+    // In windows 10 we need to query which desktop we are on as Virtawin does not keep track.
+    currentDesk = GetCurrentDesktopNumber() + 1;
+#endif
+
     if(currentDesk > nDesks)
     {   /* on a private desktop - go to first */
         deskX = 1;
@@ -3218,7 +3325,12 @@ static int
 stepUp(void)
 {
     int deskX=currentDeskX, deskY ;
-    
+
+#ifdef WIN10
+    // In windows 10 we need to query which desktop we are on as Virtawin does not keep track.
+    currentDesk = GetCurrentDesktopNumber() + 1;
+#endif
+
     if(currentDesk > nDesks)
     {   /* on a private desktop - go to last */
         deskX = nDesksX;
@@ -3247,7 +3359,7 @@ stepUp(void)
 #define vwPMENU_MRU      0x0008
 #define vwPMENU_TITLEID  0x0100
 #define vwPMENU_ACCESS   0x0100
-#define vwPMENU_ASSIGN   0x0200
+#define vwPMENU_ASSIGN   0x0200     // "Move Here"
 #define vwPMENU_SHOW     0x0400
 #define vwPMENU_STICKY   0x0800
 #define vwPMENU_ID_MASK  0x00ff
@@ -3262,17 +3374,29 @@ winListCreateItemList(int flags, vwListItem **items,int *numitems)
     vwWindow *win, *ww ;
     vwListItem *item;
     TCHAR *buff, title[vwWINDOWNAME_MAX+18] ;
-    int i, len, x, y, listContent=(winListContent & ~(vwWINLIST_ASSIGN|vwWINLIST_TITLELN)) ;
+    int i, len, x, y, listContent;
     
-    buff = title + ((nDesks > 9) ? 2:1) ;
-    *buff++ = ' ' ;
-    *buff++ = '-' ;
-    *buff++ = ' ' ;
+    listContent = (winListContent & ~(vwWINLIST_ASSIGN | vwWINLIST_TITLELN));
+
+    // title[0] to title[1] will be '1' to '9' or '10' to 'xx'
+    if (nDesks > 9)
+        buff = &title[2];
+    else
+        buff = &title[1];
+    
+    // Append " - " to title
+    *buff++ = _T(' ') ;
+    *buff++ = _T('-') ;
+    *buff++ = _T(' ') ;
     
     // create the window list
     vwMutexLock();
+
+    // enumerate the windows 
     windowListUpdate() ;
-    win = windowList ;
+
+    win = (vwWindow * )windowList ;
+    // Walk through the linked list until we find the end of the list. 
     while(win != NULL)
     {
         win->menuId = 0 ;
@@ -3288,8 +3412,7 @@ winListCreateItemList(int flags, vwListItem **items,int *numitems)
             ww = win ;
         else if((win->flags & vwWINFLAGS_NO_TASKBAR_BUT) && ((ww = win->linkedNext) != NULL))
         {
-            while((ww->desk != win->desk) || ((ww->flags & (vwWINFLAGS_NO_TASKBAR_BUT|vwWINFLAGS_MANAGED)) != vwWINFLAGS_MANAGED))
-                  
+            while((ww->desk != win->desk) || ((ww->flags & (vwWINFLAGS_NO_TASKBAR_BUT|vwWINFLAGS_MANAGED)) != vwWINFLAGS_MANAGED))                  
             {
                 if((ww = ww->linkedNext) == win)
                 {
@@ -3306,20 +3429,20 @@ winListCreateItemList(int flags, vwListItem **items,int *numitems)
             DWORD dIcon ;
             
             if(nDesks <= 9)
-                title[0] = win->desk + '0' ;
+                title[0] = _T(win->desk + '0') ;
             else if(win->desk >= 10)
             {
-                title[0] = (win->desk / 10) + '0' ;
-                title[1] = (win->desk % 10) + '0' ;
+                title[0] = _T((win->desk / 10) + '0') ;
+                title[1] = _T((win->desk % 10) + '0') ;
             }
             else
             {
-                title[0] = ' ' ;
-                title[1] = win->desk + '0' ;
+                title[0] = _T(' ') ;
+                title[1] = _T(win->desk + '0');
             }
             GetWindowText(win->handle, buff, len);
             
-            if(((item = malloc(sizeof(vwListItem))) == NULL) ||
+            if(((item = (vwListItem *) malloc(sizeof(vwListItem))) == NULL) ||
                ((item->name = _tcsdup(title)) == NULL))
             {
                 while(--i >= 0)
@@ -3443,16 +3566,16 @@ static void
 winListCreateMenuTitleLine(HMENU hMenu, MENUITEMINFO *minfo, int offset, int desktopNo)
 {
     TCHAR buff[40], *ss ;
-    
-    _tcscpy(buff,_T("Desktop ")) ;
-    ss = buff + 8 ;
+
+    _tcscpy(buff, _T("Desktop ")) ;
+    ss = &buff[0] + 8 ;
     if(desktopNo >= 10)
-        *ss++ = (desktopNo/10)+'0' ;
-    *ss++ = (desktopNo%10)+'0' ;
-    *ss++ = ':' ;
+        *ss++ = _T((desktopNo/10)+'0') ;
+    *ss++ = _T((desktopNo%10)+'0') ;
+    *ss++ = _T(':') ;
     if(desktopName[desktopNo] != NULL)
     {
-        *ss++ = ' ' ;
+        *ss++ = _T(' ') ;
         _tcsncpy(ss,desktopName[desktopNo],20) ;
         ss[19] = '\0' ;
     }
@@ -3511,6 +3634,9 @@ winListCreateMenu(int flags, int itemCount, vwListItem **items)
                        vwPMENU_ACCESS | (items[x]->id),(const TCHAR *) items[x]) ;
         }
     }
+
+    // In Windows 10 you will not get a move here window by default because windows 10 keeps track of the number of windows dynamically 
+    // at the first time you start windows there will be only one window. 
     if(flags & vwPMENU_ASSIGN)
     {
         AppendMenu(hMenu,divFlags,vwPMENU_ASSIGN,(flags & vwPMENU_COMPACT) ? _T("Move Here  (&Next ->)"):_T("Move Here"));
@@ -3595,13 +3721,16 @@ winListCreateMenu(int flags, int itemCount, vwListItem **items)
 
 /************************************************
  * This function decides what switching technique that should be used
- * and calls the appropriate switching function
+ * and calls the appropriate switching function. Always returns 0
  */
 static int
 vwWindowShowHide(vwWindow* aWindow, vwUInt flags)
 {
     /* Do nothing if we are dragging a window or the show hide state is right */
     vwLogVerbose((_T("vwWindowShowHide %8x %x %x %x %d %d\n"),(int) aWindow->handle,flags,(int)aWindow->flags,(int)aWindow->exStyle,aWindow->desk,currentDesk)) ;
+#ifdef WIN10
+    return 0;
+#else
     if(((flags & vwWINSH_FLAGS_SHOW) != 0) ^ vwWindowIsShown(aWindow))
     {
         RECT pos;
@@ -3754,6 +3883,7 @@ vwWindowShowHide(vwWindow* aWindow, vwUInt flags)
     else
         aWindow->flags &= ~vwWINFLAGS_SHOW ;
     return TRUE ;
+#endif
 }
 
 /************************************************
@@ -3797,10 +3927,16 @@ vwToggleEnabled(int action)
     }
     if(vwIsEnabled())
     {   /* Enable VirtuaWin */
+#ifndef WIN10
         vwHotkeyRegister(0);
+#endif
         enableMouse(mouseEnable);
         vwIconSet(currentDesk,0);
+#ifdef WIN10
+        // Do not need the timer in Windows 10 because messages are sent when the desktop changes. 
+#else
         SetTimer(hWnd, 0x29a, 250, monitorTimerProc);
+#endif
     }
     else
     {   /* Disable VirtuaWin */
@@ -3812,7 +3948,10 @@ vwToggleEnabled(int action)
         }
         vwIconSet(0,0);
         enableMouse(FALSE);
+
+#ifndef WIN10
         vwHotkeyUnregister(0);
+#endif
         if(vwIsBossLocked() && (currentDesk != 1))
         {
             /* Change to Desktop 1, remove any change handler to get the job done asap */ 
@@ -4141,6 +4280,7 @@ windowDismiss(HWND theWin)
     return ret ;
 }
 
+#ifndef WIN10
 static int
 windowPushToBottom(HWND theWin)
 {
@@ -4180,6 +4320,7 @@ windowPushToBottom(HWND theWin)
                  SWP_DEFERERASE|SWP_NOSIZE|SWP_NOACTIVATE|SWP_NOSENDCHANGING|SWP_NOMOVE) ;
     return 1 ;
 }
+#endif
 
 static HWND infoWin ;
 
@@ -4272,7 +4413,7 @@ WindowInfoDialogFunc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_CLOSE:
         EndDialog(hwndDlg,0);
         return TRUE;
-	
+
     }
     return FALSE;
 }
@@ -4383,7 +4524,7 @@ popupWindowMenu(HWND theWin, int wmFlags)
      * not automatically close if the user changes focus */
     setForegroundWin(hWnd,0);
     ii = TrackPopupMenu(hpopup,TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY,pt.x,pt.y,0,hWnd,NULL) ;
-    PostMessage(hWnd, 0, 0, 0);	
+    PostMessage(hWnd, 0, 0, 0);
     DestroyMenu(hpopup) ;
     if((moveMenu != NULL) && (moveMenu != hpopup))
         DestroyMenu(moveMenu) ;
@@ -4398,9 +4539,11 @@ popupWindowMenu(HWND theWin, int wmFlags)
     case ID_WM_ONTOP:
         windowSetAlwaysOnTop(theWin) ;
         break ;
+#ifndef WIN10
     case ID_WM_BOTTOM:
         windowPushToBottom(theWin) ;
         return ;
+#endif
     case ID_WM_STICKY:
         windowSetSticky(theWin,-1) ;
         break;
@@ -4467,7 +4610,7 @@ static void
 measureMenuItem(HWND hwnd,MEASUREITEMSTRUCT* mitem)
 {
     HDC testdc;
-    HFONT menufont,oldfont;
+    HGDIOBJ menufont,oldfont;
     vwListItem* item;
     SIZE size;
     TCHAR *measuretext;
@@ -4502,11 +4645,11 @@ static void
 renderMenuItem(DRAWITEMSTRUCT* ditem)
 {
     vwListItem* item;
-    HFONT menufont,oldfont;
+    HGDIOBJ menufont,oldfont;
     HICON icon;
     UINT oldalign;
-    HBRUSH focusbrush,oldbrush;
-    HPEN oldpen;
+    HGDIOBJ focusbrush,oldbrush;
+    HGDIOBJ oldpen;
     SIZE size;
     int backgroundcolor,textcolor, ll;
 
@@ -4580,7 +4723,11 @@ popupWinListMenu(HWND aHWnd, int wlFlags)
         showSetup() ;
         return ;
     }
+
+    // Get a HWND to the window the user is currently using. 
     fgWin = GetForegroundWindow() ;
+
+    // get a list of available windows.
     if((wlcFlags = winListCreateItemList(wlFlags,items,&itemCount)) == 0)
         return ;
     if((wlFlags & 0x010) && hotkeyMenuLoc)
@@ -4620,6 +4767,8 @@ popupWinListMenu(HWND aHWnd, int wlFlags)
             ii = wlcFlags ;
         if((hpopup = winListCreateMenu(ii,itemCount,items)) == NULL)
             break ;
+
+        // Open the menu and wait for a response.
         retItem = TrackPopupMenu(hpopup, TPM_RETURNCMD | TPM_LEFTBUTTON, // Return menu code
                                  pt.x, pt.y, 0, aHWnd, NULL);
         vwLogBasic((_T("Window menu returned: %x\n"),(int) retItem)) ;
@@ -4637,8 +4786,11 @@ popupWinListMenu(HWND aHWnd, int wlFlags)
     {
         vwWindow *win ;
         vwUInt flags=0 ;
-        HWND hwnd=NULL ;
+//        vwUByte   desk ;
+//        vwUInt    menuId;
+        HWND      hwnd=NULL ;
         
+        // Mask everything but the lower 8 bits of retItem
         ii = retItem & vwPMENU_ID_MASK ;
         vwMutexLock();
         win = windowList ;
@@ -4758,15 +4910,50 @@ insertMenuItems(HMENU hpopup, vwUShort posMax, vwMenuItem **cmiPtr, int *cmidPtr
 }
 
 /*****************************************************************************
- * Pops up and handles the control menu. cmFlags is a bitmask:
- *   0x10 : Opened via a hotkey
+Add "Move to Desktop xx" to the popup menu when you right click the system tray icon
+*/
+static LRESULT popupControl_Move_to_Desktop(HMENU hpopup)
+{
+    TCHAR buff[40];
+    int ii;
+
+#ifdef WIN10
+    // In windows 10 we need to query which desktop we are on as Virtawin does not keep track.
+    currentDesk = GetCurrentDesktopNumber()+1;
+#endif
+    // Each menu item will be of the format "Move to Desktop &0d"  where 1 = 1 to numDesks.
+    _tcscpy(buff,_T("Move to Desktop & ")) ;
+    for(ii = 1 ; ii <= nDesks ; ii++)   {
+        if(ii >= 10)
+            buff[16] = _T((ii/10)+'0') ;
+        buff[17] = _T((ii%10)+'0') ;
+        // If the desktop has a descriptive name assigned then append it to the buffer
+        if(desktopName[ii] != NULL)
+        {
+            buff[18] = _T(':');
+            buff[19] = _T(' ');
+            _tcsncpy(buff+20,desktopName[ii],20) ;
+            buff[39] = '\0' ;
+        }
+        else
+            buff[18] = '\0' ;
+        // Add "Move to Desktop x" on the main context menu.
+        AppendMenu(hpopup,(ii == currentDesk) ? (MF_STRING|MF_GRAYED):MF_STRING,ID_DESK_N+ii,buff);
+    }
+    return TRUE;
+}
+
+/*****************************************************************************
+ * Pops up and handles the control menu when you right click the system tray icon or use a hotkey.
+   cmFlags is a bitmask:
+   cmFlag == 0x10 : Opened via a hotkey
  */
 static LRESULT
 popupControlMenu(HWND aHWnd, int cmFlags)
 {
     vwMenuItem *mi ;
     HMENU hpopup, moveMenu=NULL ;
-    TCHAR buff[40] ;
+//    TCHAR buff[40] ;
     POINT pt ;
     int ii, mid=0 ;
     
@@ -4778,9 +4965,12 @@ popupControlMenu(HWND aHWnd, int cmFlags)
         showSetup() ;
         return TRUE ;
     }
+    // Try and create a popup menu.
         
     if((hpopup = CreatePopupMenu()) == NULL)
         return FALSE ;
+    
+    // Add Setup, Window Rules, and Reapply Rules are the first three entries.
     
     if(vwIsEnabled())
     {
@@ -4819,38 +5009,38 @@ popupControlMenu(HWND aHWnd, int cmFlags)
         insertMenuItems(hpopup,2000,&mi,&mid) ;
         AppendMenu(hpopup,MF_SEPARATOR,0,NULL) ;
         insertMenuItems(hpopup,2100,&mi,&mid) ;
-        if((cmFlags & 0x01) == 0)
-            moveMenu = hpopup ;
-        else if((moveMenu = CreatePopupMenu()) == NULL)
-        {
-            DestroyMenu(hpopup) ;
-            return FALSE ;
+        // If there are 3 or less screens then list then one after the other. 
+        // if there are 4 or more screens then add them as a submenu.
+        if (nDesks <= 3) {
+            insertMenuItems(hpopup,2200,&mi,&mid) ;
+            // Add "Move to Desktop"
+            popupControl_Move_to_Desktop(hpopup);   
         }
-        else
-            AppendMenu(hpopup,MF_POPUP,(UINT_PTR) moveMenu,_T("Mo&ve to Desktop"));
-        
-        insertMenuItems(hpopup,2200,&mi,&mid) ;
-        _tcscpy(buff,_T("Move to Desktop & ")) ;
-        for(ii = 1 ; ii <= nDesks ; ii++)
-        {
-            if(ii >= 10)
-                buff[16] = (ii/10)+'0' ;
-            buff[17] = (ii%10)+'0' ;
-            if(desktopName[ii] != NULL)
+        else {
+            // If bit 0 is zero then do not use a submenu for the "Move to Desktop"
+            if((cmFlags & 0x01) == 0)
+                moveMenu = hpopup ;
+            else if((moveMenu = CreatePopupMenu()) == NULL)
             {
-                buff[18] = ':' ;
-                buff[19] = ' ' ;
-                _tcsncpy(buff+20,desktopName[ii],20) ;
-                buff[39] = '\0' ;
+                DestroyMenu(hpopup) ;
+                return FALSE ;
             }
             else
-                buff[18] = '\0' ;
-            AppendMenu(moveMenu,(ii == currentDesk) ? (MF_STRING|MF_GRAYED):MF_STRING,ID_DESK_N+ii,buff) ;
+            {
+                insertMenuItems(hpopup,2100,&mi,&mid) ;
+                AppendMenu(hpopup,MF_POPUP,(UINT_PTR) moveMenu,_T("Mo&ve to Desktop"));
+        
+                insertMenuItems(hpopup,2200,&mi,&mid) ;
+                // Add "Move to Desktop"
+                popupControl_Move_to_Desktop(moveMenu);  
+            }
+
+            insertMenuItems(hpopup,3000,&mi,&mid) ;
+            AppendMenu(hpopup,(deskWrap || (currentDesk < nDesks)) ? MF_STRING:(MF_STRING|MF_GRAYED),ID_DESK_NEXT,_T("Move to &Next"));
+            insertMenuItems(hpopup,3100,&mi,&mid) ;
+            AppendMenu(hpopup,(deskWrap || (currentDesk > 1)) ? MF_STRING:(MF_STRING|MF_GRAYED),ID_DESK_PREV,_T("Move to &Previous"));
         }
-        insertMenuItems(hpopup,3000,&mi,&mid) ;
-        AppendMenu(hpopup,(deskWrap || (currentDesk < nDesks)) ? MF_STRING:(MF_STRING|MF_GRAYED),ID_DESK_NEXT,_T("Move to &Next"));
-        insertMenuItems(hpopup,3100,&mi,&mid) ;
-        AppendMenu(hpopup,(deskWrap || (currentDesk > 1)) ? MF_STRING:(MF_STRING|MF_GRAYED),ID_DESK_PREV,_T("Move to &Previous"));
+
         insertMenuItems(hpopup,0xffff,&mi,&mid) ;
     }
     if((cmFlags & 0x010) && hotkeyMenuLoc)
@@ -4862,7 +5052,7 @@ popupControlMenu(HWND aHWnd, int cmFlags)
         GetCursorPos(&pt);
     SetForegroundWindow(aHWnd);
     ii = TrackPopupMenu(hpopup,TPM_RETURNCMD | TPM_RIGHTBUTTON,pt.x,pt.y,0,aHWnd,NULL) ;
-    PostMessage(aHWnd, 0, 0, 0);	
+    PostMessage(aHWnd, 0, 0, 0);
     DestroyMenu(hpopup);
     if((moveMenu != NULL) && (moveMenu != hpopup))
         DestroyMenu(moveMenu) ;
@@ -4878,31 +5068,31 @@ popupControlMenu(HWND aHWnd, int cmFlags)
     }
     switch(ii)
     {
-    case ID_SETUP:		// show setup box
+    case ID_SETUP:      // show setup box
         showSetup();
         break;
-    case ID_WTYPE:		// show window rule dialog
+    case ID_WTYPE:      // show window rule dialog
         showWindowRule(NULL,0) ;
         break;
     case ID_REAPPLY_RULES:
         vwWindowRuleReapply() ; // Reapply all window rules
         break ;
-    case ID_GATHER:		// gather all windows
+    case ID_GATHER:     // gather all windows
         vwWindowShowAll(0);
         break;
-    case ID_HELP:		// show help
+    case ID_HELP:       // show help
         showHelp(aHWnd,NULL) ;
         break;
-    case ID_DISABLE:	// Disable VirtuaWin
+    case ID_DISABLE:    // Disable VirtuaWin
         vwToggleEnabled(0) ;
         break;
-    case ID_EXIT:		// exit application
+    case ID_EXIT:       // exit application
         DestroyWindow(aHWnd);
         break;
-    case ID_DESK_NEXT:	// move to the next desktop
+    case ID_DESK_NEXT:  // move to the next desktop
         stepDelta(1) ;
         break;
-    case ID_DESK_PREV:	// move to the previous desktop
+    case ID_DESK_PREV:  // move to the previous desktop
         stepDelta(-1) ;
         break;
     default:
@@ -4923,6 +5113,8 @@ popupControlMenu(HWND aHWnd, int cmFlags)
     }
     return TRUE ;
 }
+
+#ifndef WIN10
 
 static int
 vwHotkeyExecute(vwUByte command, vwUByte desk, vwUByte modifier)
@@ -5053,13 +5245,14 @@ vwHotkeyExecute(vwUByte command, vwUByte desk, vwUByte modifier)
     }
     return 1 ;
 }
-
+#endif
 /*************************************************
  * Main window callback, this is where all main window messages are taken care of
  */
 static LRESULT CALLBACK
 wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+int  temp;
     switch (message)
     {
     case VW_MOUSEWARP:
@@ -5082,7 +5275,7 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         SetCursorPos(pt.x + mouseJumpLength, pt.y);
                 }
                 break;
-                
+#ifndef WIN10                
             case 1:
                 /* up */
                 if(invertY)
@@ -5097,7 +5290,7 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         SetCursorPos(pt.x, pt.y + mouseJumpLength);
                 }
                 break;
-                
+#endif
             case 2:
                 /* right */
                 if((stepRight() != 0) && (LOWORD(lParam) & 0x2))
@@ -5108,7 +5301,7 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         SetCursorPos(pt.x - mouseJumpLength, pt.y);
                 }
                 break;
-                
+#ifndef WIN10
             case 3:
                 /* down */
                 if(invertY)
@@ -5123,7 +5316,7 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         SetCursorPos(pt.x, pt.y - mouseJumpLength);
                 }
                 break;
-            
+#endif
             case 4:
                 /* window list */
                 popupWinListMenu(aHWnd,(HIWORD(GetKeyState(VK_CONTROL))) ? 6:(HIWORD(GetKeyState(VK_SHIFT))) ? (winListCompact ^ 5):(winListCompact | 4)) ;
@@ -5146,8 +5339,8 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
             isDragging = 0 ;
         }
         return TRUE;
-        
-    case WM_HOTKEY:				// A hot key was pressed
+#ifndef WIN10        
+    case WM_HOTKEY:             // A hot key was pressed
         {
             int ii = hotkeyCount ;
             while(--ii >= 0)
@@ -5158,6 +5351,7 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
             vwHotkeyExecute(hotkeyList[ii].command,hotkeyList[ii].desk,hotkeyList[ii].modifier) ;
             return TRUE ;
         }
+#endif
         // Plugin messages
     case VW_CHANGEDESK: 
         if(vwIsDisabled())
@@ -5414,10 +5608,12 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
         
     case VW_WINMANAGE:
         return windowSetManage((HWND)wParam,(int) lParam);
-        
+
+#ifndef WIN10
     case VW_HOTKEY:
         return vwHotkeyExecute((vwUByte) wParam,(vwUByte) LOWORD(lParam),(vwUByte) HIWORD(lParam)) ;
-        
+#endif
+
     case VW_CMENUITEM:
         {
             vwMenuItem *mi, *pi, *ni ;
@@ -5474,7 +5670,7 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         // End plugin messages
         
-    case WM_CREATE:		       // when main window is created
+    case WM_CREATE:            // when main window is created
         return TRUE;
         
     case WM_MOVE:
@@ -5493,11 +5689,11 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
             return FALSE ;
         break ;
         
-    case WM_DESTROY:	  // when application is closed
+    case WM_DESTROY:      // when application is closed
         shutDown();            
         return TRUE;
         
-    case VW_SYSTRAY:		   // We are being notified of mouse activity over the icon
+    case VW_SYSTRAY:           // We are being notified of mouse activity over the icon
         switch (lParam)
         {
         case WM_LBUTTONDOWN:               // Show the window list
@@ -5509,13 +5705,13 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if(vwIsEnabled())
                 showSetup();
             break;
-            
-        case WM_MBUTTONUP:		   // Move to the next desktop
+#ifndef WIN10
+        case WM_MBUTTONUP:         // Move to the next desktop
             if(vwIsEnabled())
                 stepDelta((HIWORD(GetKeyState(VK_SHIFT))) ? -1:1) ;
             break;
-            
-        case WM_RBUTTONUP:		   // Open the control menu
+#endif
+        case WM_RBUTTONUP:         // Open the control menu
             return popupControlMenu(aHWnd,ctlMenuCompact) ;
         }
         return TRUE;
@@ -5552,8 +5748,8 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 vwMenuItem *mi, *pi, *ni ;
                 int ii ;
                 
-                if((cds->cbData > 4) && ((mim=cds->lpData) != NULL) &&
-                   ((mi = malloc(sizeof(vwMenuItem))) != NULL))
+                if((cds->cbData > 4) && ((mim=(vwMenuItemMsg *)cds->lpData) != NULL) &&
+                   ((mi = (vwMenuItem *)malloc(sizeof(vwMenuItem))) != NULL))
                 {
                     mi->module = (HWND) wParam ;
                     mi->submenu = NULL ;
@@ -5593,14 +5789,49 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
-	
-	case VW_MODRELOAD:
+    
+    case VW_MODRELOAD:
         vwModuleUnLoad();
         /* sleep for a second to allow the modules to exit cleanly */
         Sleep(1000) ;
         vwModulesLoad();
         break;
-	
+#ifdef WIN10        
+    case MESSAGE_OFFSET + VDA_CurrentVirtualDesktopChanged:
+    //std::wcout << L"CurrentVirtualDesktopChanged old: " << wParam << " new:" << lParam << "\r\n";
+        if (initialized == TRUE) 
+        {
+            vwIconSet(lParam+1, 0);
+        }
+        break;
+        // VDA_ViewVirtualDesktopChanged get sent whenever the view gets changed. This means lots of hits. 
+    case MESSAGE_OFFSET + VDA_ViewVirtualDesktopChanged:
+    //std::wcout << L"CurrentVirtualDesktopChanged old: " << wParam << " new:" << lParam << "\r\n";
+        if (initialized == TRUE)
+            temp = 1;
+        break;
+    case MESSAGE_OFFSET + VDA_VirtualDesktopCreated:
+    //A new Virtual Desktop was created.  This might or might not require a change in desktop
+        if (initialized == TRUE)
+            vwIconSet(wParam + 1, 0);
+        break;
+    case MESSAGE_OFFSET + VDA_VirtualDesktopDestroyBegin:
+    //std::wcout << L"CurrentVirtualDesktopChanged old: " << wParam << " new:" << lParam << "\r\n";
+        if (initialized == TRUE)
+            temp = 3;
+        break;
+    case MESSAGE_OFFSET + VDA_VirtualDesktopDestroyed:
+    //std::wcout << L"CurrentVirtualDesktopChanged old: " << wParam << " new:" << lParam << "\r\n";
+        if (initialized == TRUE)
+            vwIconSet(lParam + 1, 0);
+        break;
+        case MESSAGE_OFFSET + VDA_VirtualDesktopDestroyFailed:
+        //std::wcout << L"CurrentVirtualDesktopChanged old: " << wParam << " new:" << lParam << "\r\n";
+            if (initialized == TRUE)
+                temp = 5;
+            break;
+#endif  
+
     default:
         // If taskbar restarted
         if(message == RM_TaskbarCreated)
@@ -5686,14 +5917,20 @@ VirtuaWinInitContinue(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
     RM_Shellhook = RegisterWindowMessage(_T("SHELLHOOK"));
     
     vwHookSetup();
+#ifdef WIN10
+    currentDesk = GetCurrentDesktopNumber() + 1;    
+#else
+    // For Windows XP, 2000, Windows 7, and Windows 8 we need to set up 
+    // the hotkey handler.  In Windows 10, Virtual Desktop is part of the system so no Hotkey handler is needed. 
     vwHotkeyRegister(1);
+#endif
     getScreenSize();
     getWorkArea();
     vwTaskbarHandleGet();
     vwIconSet(currentDesk,0) ;
     
     /* Create the thread responsible for mouse monitoring */   
-    mouseThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) vwMouseProc, NULL, 0, &threadID); 	
+    mouseThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) vwMouseProc, NULL, 0, &threadID);
     mouseEnabled = TRUE;
     enableMouse(mouseEnable);
     
@@ -5705,14 +5942,18 @@ VirtuaWinInitContinue(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
     /* Load user modules */
     vwModulesLoad();
     
+#ifndef WIN10
     SetTimer(hWnd,0x29a,1000,monitorTimerProc) ; 
+#endif
     initialized = TRUE ;
 }
 
 static void
 VirtuaWinInit(HINSTANCE hInstance, LPSTR cmdLine)
 {
+#ifndef WIN10
     OSVERSIONINFO os;
+#endif
     HINSTANCE libHandle ; 
     WNDCLASSEX wc;
     hInst = hInstance;
@@ -5722,7 +5963,7 @@ VirtuaWinInit(HINSTANCE hInstance, LPSTR cmdLine)
     _CrtSetDbgFlag (_CRTDBG_ALLOC_MEM_DF|_CRTDBG_DELAY_FREE_MEM_DF|
                     _CRTDBG_LEAK_CHECK_DF|_CRTDBG_DELAY_FREE_MEM_DF);
 #endif
-    /* Is this call to VirtuaWin just to send a message to an already ruinning VW? */
+    /* Is this call to VirtuaWin just to send a message to an already running VW? */
     cmdLine = strstr(cmdLine,"-msg") ;
     
     /* Only one instance may be started */
@@ -5755,8 +5996,13 @@ VirtuaWinInit(HINSTANCE hInstance, LPSTR cmdLine)
     signal(SIGABRT,vwCrashHandler);
     signal(SIGSEGV,vwCrashHandler);
     vwThread = GetCurrentThreadId() ;
-#pragma warning (disable : 4996)    
-    
+#ifdef WIN10
+    // In Windows 10 you need a manifest as neither GetVersionEx nor VerifyVersionInfo will work. 
+    // See https://msdn.microsoft.com/en-us/library/windows/desktop/dn481241(v=vs.85).aspx for details. 
+    // Until such times as I understand how to insert a manifest into this program 
+    // I will target branch develop specifically for Windows 10. 
+    osVersion = OSVERSION_WIN10;
+#else  
     os.dwOSVersionInfoSize = sizeof(os);
     GetVersionEx(&os);
     if(os.dwPlatformId == VER_PLATFORM_WIN32s)
@@ -5773,7 +6019,8 @@ VirtuaWinInit(HINSTANCE hInstance, LPSTR cmdLine)
             osVersion = OSVERSION_XP ;
     }
     osVersion |= vwWindowsIs64Bit() ;
-    
+#endif 
+
     if((libHandle = LoadLibrary(_T("psapi"))) != NULL)
 #ifdef _UNICODE
         vwGetModuleFileNameEx = (vwGETMODULEFILENAMEEX) GetProcAddress(libHandle,"GetModuleFileNameExW") ;
@@ -5808,20 +6055,44 @@ VirtuaWinInit(HINSTANCE hInstance, LPSTR cmdLine)
         exit(1) ;
     }
     /* Create window. Note that the window is visible to solve pop-up issues, but is placed off sceen */
-    if((hWnd = CreateWindowEx(WS_EX_TOOLWINDOW, vwVIRTUAWIN_CLASSNAME, vwVIRTUAWIN_CLASSNAME, WS_VISIBLE,
-                              10, -31000, 10, 10, NULL, NULL, hInstance, NULL)) == NULL)
+    hWnd = CreateWindowEx(
+               WS_EX_TOOLWINDOW,            // in: The extended window style of the window being created
+               vwVIRTUAWIN_CLASSNAME,       // in: A null-terminated string or a class atom created by a previous call to the RegisterClass or RegisterClassEx function
+               vwVIRTUAWIN_CLASSNAME,       // in: The window name
+               WS_VISIBLE,                  // in: dwStyle. The style of the window being created
+               10,                          // x: The initial horizontal position of the window
+               -31000,                      // y: The initial vertical position of the window
+               10,                          // nWidth: The width, in device units, of the window
+               10,                          // nHeight: The height, in device units, of the window
+               NULL,                        // hWndParent [in, optional]Type: HWND A handle to the parent or owner window of the window being created.
+               NULL,                        // hMenu[in, optional] Type: HMENU A handle to a menu, or specifies a child - window identifier, depending on the window style.
+               hInstance,                   // A handle to the instance of the module to be associated with the window.
+               NULL);                       // Pointer to a value to be passed to the window through the CREATESTRUCT structure
+
+    if ((hWnd) == NULL)
     {
         MessageBox(NULL,_T("Failed to create window!"),vwVIRTUAWIN_NAME _T(" Error"), MB_ICONWARNING);
         exit(2) ;
     }
+
+#ifdef WIN10
+    // Receive messages from DLL when certain events occur (like changing a desktop)
+    int rc; 
+    rc = RegisterPostMessageHook(hWnd, MESSAGE_OFFSET);
+    if ((rc) != 0)
+    {
+        MessageBox(NULL, _T("Failed to Register PostMessageHook!"), vwVIRTUAWIN_NAME _T(" Error"), MB_ICONWARNING);
+        exit(3);
+    }
+#endif
     
     /* Initials the systray icon structure */
     nIconD.cbSize = sizeof(NOTIFYICONDATA); // size
-    nIconD.hWnd = hWnd;		    // window to receive notifications
-    nIconD.uID = 1;		    // application-defined ID for icon (can be any UINT value)
+    nIconD.hWnd = hWnd;         // window to receive notifications
+    nIconD.uID = 1;         // application-defined ID for icon (can be any UINT value)
     nIconD.uFlags = NIF_MESSAGE |   // nIconD.uCallbackMessage is valid, use it
-          NIF_ICON |		    // nIconD.hIcon is valid, use it
-          NIF_TIP;		    // nIconD.szTip is valid, use it
+          NIF_ICON |            // nIconD.hIcon is valid, use it
+          NIF_TIP;          // nIconD.szTip is valid, use it
     nIconD.uCallbackMessage = VW_SYSTRAY;  // message sent to nIconD.hWnd
     
     loadVirtuawinConfig() ;
@@ -5834,7 +6105,7 @@ VirtuaWinInit(HINSTANCE hInstance, LPSTR cmdLine)
     if(vwLogFlag)
     {
         TCHAR logFname[MAX_PATH] ;
-        GetFilename(vwVIRTUAWIN_CFG,1,logFname) ;
+        GetFilename(VWVIRTUAWIN_CFG,1,logFname) ;
         _tcscpy(logFname+_tcslen(logFname)-3,_T("log")) ;
         vwLogFile = _tfopen(logFname,_T("w+")) ;
         vwLogBasic((vwVIRTUAWIN_NAME_VERSION _T("\n"))) ;
@@ -5868,3 +6139,4 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     CloseHandle(hMutex);
     return msg.wParam;
 }
+

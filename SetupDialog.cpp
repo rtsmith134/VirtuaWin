@@ -154,12 +154,20 @@ vwSetupApply(HWND hDlg, int curPageMask)
         {
             /* All pages have now got any changes from the GUI, save them and apply */
             saveVirtuawinConfig();
+#ifdef WIN10
+            // Windows 10 has its own keyboard handler for virtual desktops.
+#else
             vwHotkeyUnregister(1);
+#endif
             /* Need to get the taskbar again in case the order has changed to dynamic taskbar */
             vwTaskbarHandleGet();
             vwHookSetup();
             vwIconLoad();
+#ifdef WIN10
+            // Windows 10 has its own keyboard handler for virtual desktops.
+#else
             vwHotkeyRegister(1);
+#endif
             enableMouse(mouseEnable);
             vwIconSet(currentDesk,0);
             /* update the hotkey dialog as user may have made desktops (and therefore a hidden hotkey) visible */ 
@@ -461,6 +469,8 @@ vwSetupHotKeysSetCommand(HWND hDlg)
         if((vwSetupHotkeyCur >= 0) && vwSetupHotkeyGotKey &&
            (vwCommandEnum[ii] != hotkeyList[vwSetupHotkeyCur].command))
         {
+            // If the user has pressed a valid key combination (example Alt-S)
+            // then the Add and modify button will be un-greyed.
             EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_ADD),TRUE) ;
             EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_MOD),TRUE) ;
         }
@@ -480,10 +490,15 @@ vwSetupHotKeysSetDesk(HWND hDlg)
     }
 }
 
+/* The user pressed a key combination while in the hotkey editbox */
+
 static void
 vwSetupHotKeysSetKey(HWND hDlg)
 {
-    vwSetupHotkeyGotKey = ((SendDlgItemMessage(hDlg,IDC_HOTKEY_ENT,HKM_GETHOTKEY,0,0) & 0x0ff) != 0) ;
+    int msg;
+    msg = SendDlgItemMessage(hDlg,IDC_HOTKEY_ENT,HKM_GETHOTKEY,0,0);
+    vwSetupHotkeyGotKey = ((msg & 0x0ff) != 0);
+    if (vwSetupHotkeyGotKey)
     EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_ADD),vwSetupHotkeyGotKey) ;
     if(vwSetupHotkeyCur >= 0)
         EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_MOD),vwSetupHotkeyGotKey) ;
@@ -600,6 +615,7 @@ vwSetupHotKeysAddMod(HWND hDlg, int add)
         EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_ADD),FALSE) ;
         EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_MOD),FALSE) ;
         EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_DEL),TRUE) ;
+        // Update the hotkeys window with the new hotkey combinations " A + c + left "
         vwSetupHotKeysInitList() ;
         pageChangeMask |= 0x02 ;
         SendMessage(GetParent(hDlg), PSM_CHANGED, (WPARAM)hDlg, 0L);
@@ -625,10 +641,13 @@ vwSetupHotKeysDelete(HWND hDlg)
     EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_ADD),TRUE) ;
     EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_MOD),FALSE) ;
     EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_DEL),FALSE) ;
+    // Update the hotkeys window with the new hotkey combinations " A + c + left "
     vwSetupHotKeysInitList() ;
     pageChangeMask |= 0x02 ;
     SendMessage(GetParent(hDlg), PSM_CHANGED, (WPARAM)hDlg, 0L);
 }
+
+/* Message Handler for the HotKeys Tab */
 
 BOOL APIENTRY setupHotkeys(HWND hDlg, UINT message, UINT wParam, LONG lParam)
 {
@@ -663,27 +682,37 @@ BOOL APIENTRY setupHotkeys(HWND hDlg, UINT message, UINT wParam, LONG lParam)
     case WM_COMMAND:
         switch (LOWORD(wParam))
         {
+        /* The listbox Hotkeys list was selected */
         case IDC_HOTKEY_LIST:
             if(HIWORD(wParam) == LBN_SELCHANGE)
                 vwSetupHotKeysSetItem(hDlg) ;
             break ;
+        
+        /* The combobox Hotkey commands was changed */
         
         case IDC_HOTKEY_CMD:
             if(HIWORD(wParam) == CBN_SELCHANGE)
                 vwSetupHotKeysSetCommand(hDlg) ;
             break;
         
+        /* the combobox Desktop selection button was changed */
+        
         case IDC_HOTKEY_DSK:
             if(HIWORD(wParam) == CBN_SELCHANGE)
                 vwSetupHotKeysSetDesk(hDlg) ;
             break;
+        
+        /* The hotkey editbox window where was selected or called. */
         
         case IDC_HOTKEY_ENT:
             if(HIWORD(wParam) == EN_CHANGE)
                 vwSetupHotKeysSetKey(hDlg) ;
             break;
         
+        /* IDC_HOTKEY_WIN is the checkbox for "+ WIN" */
+        
         case IDC_HOTKEY_WIN:
+        /* checkbox "Operate on window under mouse" */
         case IDC_HOTKEY_WUM:
             if(vwSetupHotkeyGotKey)
             {
@@ -709,7 +738,7 @@ BOOL APIENTRY setupHotkeys(HWND hDlg, UINT message, UINT wParam, LONG lParam)
 }
 
 /*************************************************
- * The "Mouse" tab callback
+ * Message handler for the "Mouse" tab callback
  */
 BOOL APIENTRY
 setupMouse(HWND hDlg, UINT message, UINT wParam, LONG lParam)
@@ -854,6 +883,8 @@ setupModulesList(HWND hDlg)
         SendDlgItemMessage(hDlg, IDC_MODLIST, LB_ADDSTRING, 0, (LONG)tmpName);
     }
 }
+
+/* Message handler for the Modules setup dialog */
 
 BOOL APIENTRY
 setupModules(HWND hDlg, UINT message, UINT wParam, LONG lParam)
@@ -1042,7 +1073,7 @@ setupExpert(HWND hDlg, UINT message, UINT wParam, LONG lParam)
             TCHAR cmdLn[MAX_PATH+16], *ss ;
             
             _tcscpy(cmdLn,_T("explorer ")) ;
-            GetFilename(vwVIRTUAWIN_CFG,1,cmdLn+9) ;
+            GetFilename(VWVIRTUAWIN_CFG,1,cmdLn+9) ;
             if((ss = _tcsrchr(cmdLn,'\\')) != NULL)
                 *ss = '\0' ;
             memset(&si, 0, sizeof(si)); 

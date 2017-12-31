@@ -36,7 +36,7 @@ vwHookInstall(void) ;
 vwHOOK_EXPORT void
 vwHookUninstall(void) ;
 
-#if defined(__cplusplus) || defined(c_plusplus)
-}
-#endif
+//#if defined(__cplusplus) || defined(c_plusplus)
+//}
+//#endif
 #endif /* __VWHOOK_H */
