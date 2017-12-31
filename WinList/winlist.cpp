@@ -20,7 +20,6 @@
 //  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, 
 //  USA.
 //
-
 #include <windows.h>
 #include <commctrl.h>
 #include <string.h>
@@ -173,7 +172,7 @@ enumWindowsProc(HWND hwnd, LPARAM lParam)
         fbuff[0] = 'H' ;
         flag = -2 ;
     }
-    if((win = malloc(sizeof(vwlWindow))) == NULL)
+    if((win = (vwlWindow *)malloc(sizeof(vwlWindow))) == NULL)
         return FALSE ;
     memset(&item,0,sizeof(LVITEM)) ;
     item.iItem = ListView_GetItemCount(listHWnd) ;
@@ -291,7 +290,7 @@ enumWindowsSaveListProc(HWND hwnd, LPARAM lParam)
     WCHAR nameW[vwWINDOWNAME_MAX] ;
 #endif
     char text[vwWINDOWNAME_MAX] ;
-    char class[vwCLASSNAME_MAX] ;
+    char classname[vwCLASSNAME_MAX] ;
     
     
     style = GetWindowLong(hwnd, GWL_STYLE);
@@ -305,10 +304,10 @@ enumWindowsSaveListProc(HWND hwnd, LPARAM lParam)
         WideCharToMultiByte(CP_ACP,0,nameW,-1,text,vwWINDOWNAME_MAX, 0, 0) ;
     else
 #else
-    GetClassName(hwnd,class,vwCLASSNAME_MAX);
+    GetClassName(hwnd,classname,vwCLASSNAME_MAX);
     if(!GetWindowText(hwnd,text,vwWINDOWNAME_MAX))
 #endif
-        strcpy(text,"<None>");
+        strcpy_s(text,vwWINDOWNAME_MAX, "<None>");
     
     if(vwHandle != 0)
         desk = SendMessage(vwHandle,VW_WINGETINFO,(WPARAM) hwnd,0) ;
@@ -318,7 +317,7 @@ enumWindowsSaveListProc(HWND hwnd, LPARAM lParam)
             (int)hwnd,style,exstyle,(int)GetParent(hwnd),
             (int)GetWindow(hwnd,GW_OWNER),(int)GetClassLong(hwnd,GCL_HICON),(desk & 0x00ffffff),text,
             (int)procId,(int)threadId,(int)pos.top,(int)pos.bottom,(int)pos.left,(int)pos.right,
-            ((desk >> vwWTFLAGS_HIDEWIN_BITROT) & 0x00ff),class) ;
+            ((desk >> vwWTFLAGS_HIDEWIN_BITROT) & 0x00ff),classname) ;
     
     return TRUE;
 }
@@ -357,7 +356,11 @@ DialogFunc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lParam)
     {
     case WM_INITDIALOG:
         {
+#ifdef WIN10
+            HANDLE icn;
+#else
             HICON icn;
+#endif
             icn = LoadImage(hInst,MAKEINTRESOURCE(IDI_VIRTUAWIN),IMAGE_ICON,
                             GetSystemMetrics(SM_CXSMICON),GetSystemMetrics(SM_CYSMICON),0);
             if(icn)
@@ -472,7 +475,7 @@ DialogFunc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lParam)
                 int ii=1 ;
                 while(ii < 1000)
                 {
-                    _stprintf(fname,_T("%sWinList_%d.log"),(initialised) ? userAppPath:_T(""),ii) ;
+                    _stprintf_s(fname,MAX_PATH, _T("%sWinList_%d.log"),(initialised) ? userAppPath:_T(""),ii) ;
                     if(GetFileAttributes(fname) == INVALID_FILE_ATTRIBUTES)
                         break ;
                     ii++ ;
@@ -555,7 +558,7 @@ MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 #ifdef _UNICODE
                 MultiByteToWideChar(CP_ACP,0,(char *) cds->lpData,-1,userAppPath,MAX_PATH) ;
 #else
-                strcpy(userAppPath,(char *) cds->lpData) ;
+                strcpy_s(userAppPath,MAX_PATH,(char *) cds->lpData) ;
 #endif
             }
         }
