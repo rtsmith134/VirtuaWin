@@ -1,0 +1,25 @@
+/*
+Theme Name: Twenty Eleven Child
+Author: Johan Piculell
+Version: 1.0
+Template: twentyeleven
+*/
+
+@import url("../twentyeleven/style.css");
+/* @import url(http://fonts.googleapis.com/css?family=Questrial); */
+@import url(http://fonts.googleapis.com/css?family=Inder);
+
+/* Reduce the gap at the top between heading and menu bar */
+.singular.page .hentry {padding-top:0;}
+
+/* Change font everywhere */
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, font, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td {
+	font-family: 'Inder', sans-serif;
+}
