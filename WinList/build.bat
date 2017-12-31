@@ -116,6 +116,7 @@ echo              Makefile     Build using Cygwin, MinGW or Linux GNU GCC
 echo              win32v6.mak  Build using MS VC version 6
 echo              win32v8.mak  Build using MS VC version 8 (2005)
 echo              win32v9.mak  Build using MS VC version 9 onwards
+echo              win32v2010.mak  Build using MS VC version 2010
 echo     -S   : Build clean spotless.
 echo     -u   : Build with UNICODE support.
 echo.
