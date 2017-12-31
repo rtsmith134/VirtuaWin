@@ -86,7 +86,9 @@ TCHAR * GetString(eFileNames parm)
  */
 static void getUserAppPath(TCHAR *path)
 {
+#ifndef WIN10
     LPITEMIDLIST idList ;
+#endif
     TCHAR buff[MAX_PATH], *ss, *se, cc ;
     FILE *fp ;
     int len ;

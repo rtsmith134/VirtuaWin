@@ -728,8 +728,8 @@ vwIconLoad(void)
 #else
     iconCount = nDesks;
 #endif
-    memset(desktopUsed+1,1,nDesks) ;
-    memset(desktopUsed+nDesks+1,0,vwDESKTOP_SIZE-nDesks-1) ;
+    memset(desktopUsed+1,1, iconCount) ;
+    memset(desktopUsed+ iconCount +1,0,vwDESKTOP_SIZE- iconCount -1) ;
     ii = hotkeyCount;
 #ifdef WIN10
     // The virtuawin hotkey handler does not apply to Windows 10
@@ -753,8 +753,7 @@ vwIconLoad(void)
         iconCount = 4 ;
     }
 #endif
-    _tcscpy_s(buff, _countof(buff),_T("icons/")) ;
-    int remain;
+    _tcscpy(buff, _T("icons/")) ;
     for(ii = 0 ; ii<vwDESKTOP_SIZE ; ii++)
     {
         icons[ii] = NULL ;
@@ -766,11 +765,14 @@ vwIconLoad(void)
             {
                 *ss++ = _T((ii/10)+'0') ;
                 *ss++ = _T((ii%10)+'0') ;
+                *ss++ = '\0';
             }
             else
-                *ss++ = _T(ii+'0') ;
-            remain = ss - &buff[0] + _countof(buff);
-            _tcscpy_s(ss, remain, _T(".ico")) ;
+            {
+                *ss++ = _T(ii + '0');
+                *ss++ = '\0';
+            }
+            _tcscat(buff, _T(".ico")) ;
             if(((icons[ii] = (HICON) LoadImage(hInst, buff, IMAGE_ICON, xIcon, yIcon, LR_LOADFROMFILE)) == NULL) &&
                ((ii > iconCount) ||
                 ((icons[ii] = (HICON) LoadImage(hInst, MAKEINTRESOURCE(iconId+ii), IMAGE_ICON, xIcon, yIcon, 0)) == NULL)) &&
