@@ -17,36 +17,64 @@
 # MSYS need windows style /? arguments to be double slashes, i.e. //? use a varable to handle this.
 # sed is used to set the version, but it must not change the line termination to unix style, use option -b
 # for cygwin's sed and -c for msys.
+
 SLASH="/"
 SED="sed -b"
 CDRIVE="/cygdrive/c"
-# MINGW64_NT-10.0 for msys2 64 bit
-# MINGW32_NT-10.0 fpr msys2 32 bit
-#CYGWIN_NT-10.0-WOW for cygwin
+
+# if the uname contains MINGW then we are using msys so change CDRIVE
 if [ `uname | sed -e "s/^MINGW.*/MINGW/"` == 'MINGW' ] ; then
     SLASH="//"
     SED="sed -c"
     CDRIVE="/c"
 fi
-if [ -z "$VWPROGRAMFILES" ] ; then
-    if [ -z "$PROGRAMW6432" ] ; then
-        VWPROGRAMFILES="${CDRIVE}/Program Files"
-    else
-        VWPROGRAMFILES="${CDRIVE}/Program Files (x86)"
-    fi
-fi
+
 if [ -z "$EDITOR" ] ; then
     EDITOR=emacs
 fi
+
+##########################################################################
+#  Find the Help Compiler 
+##########################################################################
 if [ -z "$HELPCOMPILER" ] ; then
-    HELPCOMPILER="${VWPROGRAMFILES}/HTML Help Workshop/hhc"
+    HELPCOMPILER="${CDRIVE}/Program\ Files/HTML\ Help\ Workshop/hhc.exe"
+    if [ -f "$HELPCOMPILE" ] ; then
+        echo "Help Compiler found in Program Files"
+    else
+        HELPCOMPILER="${CDRIVE}/Program\ Files\ (x86)/HTML\ Help\ Workshop/hhc.exe"
+        if  [ -f $HELPCOMPILE ] ; then
+            echo "Help Compiler found in Program Files (x86)"
+        else
+            echo "Help Compiler not found"
+            exit 
+        fi
+    fi
 fi
+
+
+##########################################################################
+#  Find the Setup Compiler 
+##########################################################################
 if [ -z "$SETUPCOMPILER" ] ; then
-    SETUPCOMPILER="${VWPROGRAMFILES}/Inno Setup 5/Compil32"
+    SETUPCOMPILER="${CDRIVE}/Program Files/Inno Setup 5/Compil32.exe"
+    if [ -f "$SETUPCOMPILER" ] ; then
+        echo "Setup Compiler found in Program Files"
+    else
+        SETUPCOMPILER="${CDRIVE}/Program Files (x86)/Inno Setup 5/Compil32.exe"
+        if  [ -f "$SETUPCOMPILER" ] ; then
+            echo "Setup Compiler found in Program Files (x86)"
+        else
+            echo "Setup Compiler not found"
+            exit 
+        fi
+    fi
 fi
-if [ -z "$WINZIP" ] ; then
-    WINZIP="${VWPROGRAMFILES}/WinZip/wzzip"
-fi
+
+exit 
+#if [ -z "$WINZIP" ] ; then
+#    WINZIP="${VWPROGRAMFILES}/WinZip/wzzip"
+#fi
+exit
 
 if [ -z "$1" ] ; then
     echo "Usage: createPackage [-TEST] <version> [<label>]"
@@ -83,6 +111,8 @@ fi
 
 echo Creating VirtuaWin package: $version - $file_ver
 
+exit
+
 if [ -z "$TEST_PACKAGE" ] ; then
     mkdir -p ./$file_ver
     cd ./$file_ver
@@ -108,26 +138,38 @@ mkdir -p tmp/portable_unicode/modules
 mkdir -p tmp/portable_unicode/icons
 mkdir -p tmp/unicode
 
+# replace the hardcoded version number in Defines.h and replace Defines.h
 cat Defines.h | ${SED} -e "s/vwVIRTUAWIN_NAME_VERSION _T(\"VirtuaWin v.*\")/vwVIRTUAWIN_NAME_VERSION _T(\"VirtuaWin v$version\")/" > Defines.h.tmp
 mv Defines.h.tmp Defines.h
+
+# replace version numbers in VirtuaWin.rc
 cat VirtuaWin.rc | ${SED} -e "s/^ FILEVERSION .*/ FILEVERSION ${ver_mjr},${ver_mnr},${ver_rev},${ver_bno}/" > VirtuaWin.rc.tmp
 cat VirtuaWin.rc.tmp | ${SED} -e "s/^ PRODUCTVERSION .*/ PRODUCTVERSION ${ver_mjr},${ver_mnr},${ver_rev},${ver_bno}/" > VirtuaWin.rc
 cat VirtuaWin.rc | ${SED} -e "s/ VALUE \"FileVersion\", \"[.0-9]*\\\\0\"/ VALUE \"FileVersion\", \"${ver_mjr}.${ver_mnr}.${ver_rev}.${ver_bno}\\\\0\"/" > VirtuaWin.rc.tmp
 cat VirtuaWin.rc.tmp | ${SED} -e "s/ VALUE \"ProductVersion\", \"[.0-9]*\\\\0\"/ VALUE \"ProductVersion\", \"${ver_mjr}.${ver_mnr}.${ver_rev}.${ver_bno}\\\\0\"/" > VirtuaWin.rc
 rm VirtuaWin.rc.tmp
+
+# replace version numbers in vwHook.rc
 cat vwHook.rc | ${SED} -e "s/^ FILEVERSION .*/ FILEVERSION ${ver_mjr},${ver_mnr},${ver_rev},${ver_bno}/" > vwHook.rc.tmp
 cat vwHook.rc.tmp | ${SED} -e "s/^ PRODUCTVERSION .*/ PRODUCTVERSION ${ver_mjr},${ver_mnr},${ver_rev},${ver_bno}/" > vwHook.rc
 cat vwHook.rc | ${SED} -e "s/ VALUE \"FileVersion\", \"[.0-9]*\\\\0\"/ VALUE \"FileVersion\", \"${ver_mjr}.${ver_mnr}.${ver_rev}.${ver_bno}\\\\0\"/" > vwHook.rc.tmp
 cat vwHook.rc.tmp | ${SED} -e "s/ VALUE \"ProductVersion\", \"[.0-9]*\\\\0\"/ VALUE \"ProductVersion\", \"${ver_mjr}.${ver_mnr}.${ver_rev}.${ver_bno}\\\\0\"/" > vwHook.rc
 rm vwHook.rc.tmp
+
+# replace version number in help file
 cat Help/VirtuaWin_Overview.htm | ${SED} -e "s/VirtuaWin v[.0-9]* Help/VirtuaWin v${ver_mjr}.${ver_mnr} Help/" > Help/VirtuaWin_Overview.htm.tmp
 mv Help/VirtuaWin_Overview.htm.tmp Help/VirtuaWin_Overview.htm
 cat WinList/winlist.rc | ${SED} -e "s/^CAPTION \"WinList v.*\"/CAPTION \"WinList v$version\"/" > WinList/winlist.rc.tmp
 mv WinList/winlist.rc.tmp WinList/winlist.rc
+
+# replace verion number in virtuawin.iss
 cat scripts/virtuawin.iss | ${SED} -e "s/^AppVerName=VirtuaWin v.*/AppVerName=VirtuaWin v$version/" > scripts/virtuawin.iss.tmp
 mv scripts/virtuawin.iss.tmp scripts/virtuawin.iss
+
+# open an editor and let us edit HISTORY.TXT
 $EDITOR HISTORY.TXT
 cp Defines.h Messages.h Module/
+
 read -p "Compile source? [y/n] " -n 1
 echo
 if [ $REPLY == 'y' ] ; then
@@ -136,6 +178,12 @@ if [ $REPLY == 'y' ] ; then
     "$HELPCOMPILER" virtuawin.hhp
     cd ..
     echo building standard
+
+
+# FIXME    
+    
+    
+    
     make -f Makefile spotless
     make -f Makefile
     cd WinList
