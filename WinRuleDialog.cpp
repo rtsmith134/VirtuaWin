@@ -2,7 +2,7 @@
 //  VirtuaWin - Virtual Desktop Manager (virtuawin.sourceforge.net)
 //  WinRuleDialog.c - Window Rule Dialog routines.
 // 
-//  Copyright (c) 2007-2014 VirtuaWin (VirtuaWin@home.se)
+//  Copyright (c) 2007-2017 VirtuaWin (VirtuaWin@home.se)
 // 
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include <shellapi.h>
 #include <prsht.h>
 #include <commctrl.h>
+#include <Psapi.h>
 
 static int deskCount ;
 static HWND initWin ;
@@ -62,36 +63,8 @@ windowRuleDialogInitList(HWND hDlg)
         {
             ii++ ;
             ss = buff ;
-            ss += _stprintf(ss,_T("%d"),ii) ;
-            for(jj=0 ; jj<vwWTNAME_COUNT ; jj++)
-            {
-                if(wt->name[jj] != NULL)
-                {
-                    *ss++ = '\t' ;
-                    *ss++ = wtypeNameLabel[jj] ;
-                    *ss++ = 'N' ;
-                    *ss++ = ':' ;
-                    if(wt->flags & (1 << (jj << 1)))
-                        *ss++ = '*' ;
-                    kk = _tcslen(wt->name[jj]) ;
-                    if(kk > 120)
-                    {
-                        _tcsncpy(ss,wt->name[jj],120) ;
-                        ss += 120 ;
-                        *ss++ = '.' ;
-                        *ss++ = '.' ;
-                        *ss++ = '.' ;
-                    }
-                    else
-                    {
-                        _tcsncpy(ss,wt->name[jj],kk) ;
-                        ss += kk ;
-                    }
-                    if(wt->flags & (2 << (jj << 1)))
-                        *ss++ = '*' ;
-                }
-            }
-            *ss = '\0' ;
+            ss += _stprintf_s(ss, 388, _T("%d"), ii);
+            windowRuleFormatDescription(ss, wt);
             SendDlgItemMessage(hDlg,IDC_WTYPE_LIST,LB_ADDSTRING,0,(LONG) buff);
             if(wt == winRuleCur)
                 winRuleCurIdx = ii ;
@@ -102,6 +75,42 @@ windowRuleDialogInitList(HWND hDlg)
         SendDlgItemMessage(hDlg,IDC_WTYPE_LIST,LB_SETCURSEL,winRuleCurIdx-1,0) ;
     else
         winRuleCur = NULL ;
+}
+
+void 
+windowRuleFormatDescription(TCHAR* ss, vwWindowRule *wt)
+{
+    int jj, kk; 
+
+    for (jj = 0; jj<vwWTNAME_COUNT; jj++)
+    {
+        if (wt->name[jj] != NULL)
+        {
+            *ss++ = '\t';
+            *ss++ = wtypeNameLabel[jj];
+            *ss++ = 'N';
+            *ss++ = ':';
+            if (wt->flags & (1 << (jj << 1)))
+                *ss++ = '*';
+            kk = _tcslen(wt->name[jj]);
+            if (kk > 120)
+            {
+                _tcsncpy_s(ss, 388, wt->name[jj], 120);
+                ss += 120;
+                *ss++ = '.';
+                *ss++ = '.';
+                *ss++ = '.';
+            }
+            else
+            {
+                _tcsncpy_s(ss, 388, wt->name[jj], kk);
+                ss += kk;
+            }
+            if (wt->flags & (2 << (jj << 1)))
+                *ss++ = '*';
+        }
+    }
+    *ss = '\0';
 }
 
 static int wtypeNameEntry[vwWTNAME_COUNT] = { IDC_WTYPE_CNAME, IDC_WTYPE_WNAME, IDC_WTYPE_PNAME } ;
@@ -138,14 +147,14 @@ windowRuleDialogInitItem(HWND hDlg)
                     if(wt->flags & (1 << (ii << 1)))
                     {
                         buff[0] = '*' ;
-                        _tcscpy(buff+1,wt->name[ii]) ;
+                        _tcscpy_s(buff + 1, 1024, wt->name[ii]);
                     }
                     else
-                        _tcscpy(buff,wt->name[ii]) ;
+                        _tcscpy_s(buff, 1024, wt->name[ii]);
                     if(wt->flags & (2 << (ii << 1)))
-                        _tcscat(buff,_T("*")) ;
+                        _tcscat_s(buff, 1024, _T("*"));
                     if(buff[0] == '\0')
-                        _tcscpy(buff,vwWTNAME_NONE);
+                        _tcscpy_s(buff, 1024,vwWTNAME_NONE);
                 }
                 SetDlgItemText(hDlg,wtypeNameEntry[ii],buff) ;
             } while(--ii >= 0) ;
@@ -184,6 +193,41 @@ windowRuleDialogInitItem(HWND hDlg)
     EnableWindow(GetDlgItem(hDlg,IDC_WTYPE_DEL),FALSE) ;
 }
 
+
+static void
+windowRuleFillInitial(HWND hDlg) {
+    if (initWin != NULL)
+    {
+        TCHAR buff[MAX_PATH];
+        DWORD procId;
+        HANDLE procHdl;
+        DWORD procSize = MAX_PATH;
+        typedef DWORD(WINAPI *vwGETMODULEFILENAMEEX)(HANDLE, HMODULE, LPTSTR, DWORD);
+        extern vwGETMODULEFILENAMEEX vwGetModuleFileNameEx;
+
+        buff[0] = 0;
+        GetClassName(initWin, buff, MAX_PATH);
+        SetDlgItemText(hDlg, wtypeNameEntry[0], buff);
+        buff[0] = 0;
+        GetWindowText(initWin, buff, MAX_PATH);
+        if (buff[0] == 0)
+            _tcscpy_s(buff, 260, vwWTNAME_NONE);
+        SetDlgItemText(hDlg, wtypeNameEntry[1], buff);
+        buff[0] = 0;
+        if ((vwGetModuleFileNameEx != NULL) &&
+            (GetWindowThreadProcessId(initWin, &procId) != 0) && (procId != 0) &&
+            ((procHdl = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, procId)) != NULL))
+        {
+            // vwGetModuleFileNameEx(procHdl, NULL, buff, MAX_PATH);
+            QueryFullProcessImageName(procHdl, 0, buff, &procSize);
+            CloseHandle(procHdl);
+        }
+        SetDlgItemText(hDlg, wtypeNameEntry[2], buff);
+        initWin = NULL;
+    }
+}
+
+
 static void
 windowRuleDialogInit(HWND hDlg, int firstTime)
 {
@@ -217,42 +261,14 @@ windowRuleDialogInit(HWND hDlg, int firstTime)
     SendDlgItemMessage(hDlg,IDC_WTYPE_AMDSK,CB_RESETCONTENT,0, 0);
     for(ii=1 ; ii<=deskCount ; ii++)
     {
-        _stprintf(buff,_T("%d"),ii) ;
+        _stprintf_s(buff, 260, _T("%d"), ii);
         SendDlgItemMessage(hDlg, IDC_WTYPE_AMDSK, CB_ADDSTRING, 0, (LONG) buff) ;
     }
     SendDlgItemMessage(hDlg, IDC_WTYPE_AMDSK, CB_SETCURSEL, 0, 0) ;
     windowRuleDialogInitList(hDlg) ;
     windowRuleDialogInitItem(hDlg) ;
-    if(initWin != NULL)
-    {
-        buff[0] = 0 ;
-        GetClassName(initWin,buff,MAX_PATH);
-        SetDlgItemText(hDlg,wtypeNameEntry[0],buff) ;
-        buff[0] = 0 ;
-        GetWindowText(initWin,buff,MAX_PATH);
-        if(buff[0] == 0)
-            _tcscpy(buff,vwWTNAME_NONE);
-        SetDlgItemText(hDlg,wtypeNameEntry[1],buff) ;
-        buff[0] = 0 ;
-        if(((vwGetModuleFileNameEx != NULL) || (vwGetProcessImageName != NULL)) &&
-           (GetWindowThreadProcessId(initWin,&procId) != 0) && (procId != 0) && 
-           ((procHdl=OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_VM_READ,FALSE,procId)) != NULL))
-        {
-            if(vwGetProcessImageName != NULL)
-            {
-                DWORD dw = MAX_PATH ;
-                if(vwGetProcessImageName(procHdl,0,buff,&dw) == 0)
-                    buff[0] = 0 ;
+    windowRuleFillInitial(hDlg);
             }
-            if((buff[0] == 0) && (vwGetModuleFileNameEx != NULL) &&
-               (vwGetModuleFileNameEx(procHdl,NULL,buff,MAX_PATH) == 0))
-                buff[0] = 0 ;
-            CloseHandle(procHdl) ;
-        }
-        SetDlgItemText(hDlg,wtypeNameEntry[2],buff) ;
-        initWin = NULL ;
-    }
-}
 
 static void
 windowRuleDialogSetItem(HWND hDlg)
@@ -365,6 +381,18 @@ windowRuleDialogMoveDown(HWND hDlg)
     windowRuleDialogInitList(hDlg) ;
 }
 
+
+// 
+
+/************************************************
+* Add or modify rules in the window rule dialog
+* add can be one of the following values:
+* -1 - modify existing rule, do not refresh 
+*  0 - modify current rule, refresh
+*  1 - add new rule, refresh
+*  - Window will be shown on the current desktop.
+*/
+
 static void
 windowRuleDialogAddMod(HWND hDlg, int add)
 {
@@ -373,7 +401,7 @@ windowRuleDialogAddMod(HWND hDlg, int add)
     TCHAR buff[1024], *ss ;
     vwUInt flags ;
     
-    if(add)
+    if(add == 1)
     {
         if((wt = (vwWindowRule *) calloc(1,sizeof(vwWindowRule))) == NULL)
             mallocErr = 1 ;
@@ -471,8 +499,11 @@ windowRuleDialogAddMod(HWND hDlg, int add)
     }
     if(mallocErr)
         MessageBox(hWnd,_T("System resources are low, failed to create new window rule."),vwVIRTUAWIN_NAME _T(" Error"), MB_ICONERROR);
-    windowRuleDialogInitList(hDlg) ;
-    windowRuleDialogInitItem(hDlg) ;
+    if (add != -1) {
+        windowRuleDialogInitList(hDlg) ;
+        windowRuleDialogInitItem(hDlg) ;
+    }
+    
 }
 
 static void
@@ -536,6 +567,14 @@ windowRuleDialogFunc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
         {
         case IDC_WTYPE_LIST:
             if(HIWORD(wParam) == LBN_SELCHANGE)
+                // To add automatic saving will require a small refactor. 
+                // We need to start saving the currently selected item globally, 
+                // and then applying operations to that item, instead of relying
+                // on the dialog box to keep track of the item, since before we see the 
+                // switch message it forgets the item without saving. 
+                //if (winRuleCur != NULL) 
+                //  windowRuleDialogAddMod(hDlg, -1);
+
                 windowRuleDialogSetItem(hDlg) ;
             break ;
             
@@ -613,6 +652,10 @@ windowRuleDialogFunc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
             break ;
         }
         break ;
+
+    case WM_UPDATE_DIALOG:
+        windowRuleFillInitial(hDlg);
+        break;
         
     case WM_CLOSE:
         /* load original config back in */ 
@@ -636,4 +679,16 @@ createWindowRuleDialog(HINSTANCE theHinst, HWND theHwndOwner, vwWindowRule *wtyp
     DialogBox(theHinst,MAKEINTRESOURCE(IDD_WINDOWRULEDIALOG),theHwndOwner,(DLGPROC) windowRuleDialogFunc) ;
     dialogOpen = FALSE ;
     dialogHWnd = NULL ;
+}
+
+
+void
+updateWindowRuleDialog(HINSTANCE theHinst, HWND theHwndOwner, vwWindowRule *wtype, HWND theWin) {
+    if ((deskCount = nDesks) < currentDesk)
+        deskCount = currentDesk;
+    winRuleCur = wtype;
+    initWin = theWin;
+    if (dialogOpen == TRUE)
+        SendMessage(dialogHWnd, WM_UPDATE_DIALOG, (WPARAM)wtype, 0);
+
 }

@@ -4,6 +4,7 @@
 // 
 //  Copyright (c) 1999-2005 Johan Piculell
 //  Copyright (c) 2006-2014 VirtuaWin (VirtuaWin@home.se)
+//  Copyright (c) 2017      VirtuaWin (rtsmith134@gmail.com)
 // 
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -22,6 +23,8 @@
 //
 
 // Includes
+#define _CRT_SECURE_NO_WARNINGS
+#define vwLOG_VERBOSE
 #include "VirtuaWin.h"
 #include "DiskRoutines.h"
 #include "ConfigParameters.h"
@@ -181,6 +184,7 @@ vwUByte initialDesktop = 0 ;
 vwUByte deskWrap = 0 ;          
 vwUByte invertY = 0 ;           
 vwUByte hotkeyMenuLoc = 0 ;
+vwUByte aggressiveRules = 0 ;
 vwUByte winListContent = (vwWINLIST_ACCESS | vwWINLIST_ASSIGN | vwWINLIST_STICKY) ;
 vwUByte winListCompact = 0 ;
 vwUByte winMenuCompact = 1 ;
@@ -205,10 +209,8 @@ int     taskbarButtonListSize = 0 ;
 #define vwTASKBAR_BC_TABCONTROL 1    // Win 2000
 #define vwTASKBAR_BC_TOOLBAR    2    // Win XP & Vista
 #define vwTASKBAR_BC_WIN7       3    // Win7
-// Undocumented flag for 9x/ME
-#define VA_SHARED 0x8000000
-// Undocumented offsets for Win7
-#define DPA_DELTA_64 0xE0
+#define VA_SHARED 0x8000000 // Undocumented flag for 9x/ME
+#define DPA_DELTA_64 0xE0   // Undocumented offsets for Win7
 #define DPA_DELTA_32 0x90
 
 HANDLE mouseThread;                          // Handle to the mouse thread
@@ -225,6 +227,7 @@ int mouseJumpLength = 60;
 int curDisabledMod = 0; 
 vwUInt vwZOrder=1 ;
 vwUInt timerCounter=0 ;
+vwUInt updateCounter=0;
 
 /* desk image generation variables */
 int         deskImageCount=-1 ;
@@ -1463,6 +1466,11 @@ vwWindowFind(HWND hwnd)
 typedef int (*vwIFuncSST)(const TCHAR *, const TCHAR *, size_t);
 static vwIFuncSST nameCompFunc[vwWTNAME_COUNT] = { _tcsncmp, _tcsncmp, _tcsnicmp } ;
 
+
+//Searches the window rule list to find applicable rule with highest precedence. 
+//If we've already found a rule (owt), check to see it's still active. 
+//Otherwise search the rule list to find the first match. 
+
 static vwWindowRule *
 vwWindowRuleFind(HWND hwnd, vwWindowRule *owt)
 {
@@ -1473,7 +1481,7 @@ vwWindowRuleFind(HWND hwnd, vwWindowRule *owt)
     
     if(owt != NULL)
     {
-        /* the original windowRule is stored in zOrder[0] but not maintained.
+        /* the original windowRule is stored in wt but not maintained.
          * If the user has triggered a reload the list will have changed, so
          * check the value is correct */
         wt = windowRuleList ;
@@ -1516,20 +1524,13 @@ vwWindowRuleFind(HWND hwnd, vwWindowRule *owt)
                         {
                             HANDLE procHdl ;
                             DWORD procId ;
+                            DWORD procSize = MAX_PATH; 
                             name[2][0] = '\0' ;
-                            if(((vwGetModuleFileNameEx != NULL) || (vwGetProcessImageName != NULL)) &&
+                            if((vwGetModuleFileNameEx != NULL) &&
                                (GetWindowThreadProcessId(hwnd,&procId) != 0) && (procId != 0) && 
                                ((procHdl=OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_VM_READ,FALSE,procId)) != NULL))
                             {
-                                if(vwGetProcessImageName != NULL)
-                                {
-                                    DWORD dw = MAX_PATH ;
-                                    if(vwGetProcessImageName(procHdl,0,name[2],&dw) == 0)
-                                        name[2][0] = 0 ;
-                                }
-                                if((name[2][0] == 0) && (vwGetModuleFileNameEx != NULL) &&
-                                   (vwGetModuleFileNameEx(procHdl,NULL,name[2],MAX_PATH) == 0))
-                                    name[2][0] = 0 ;
+                                QueryFullProcessImageName(procHdl, 0, name[2], &procSize);
                                 CloseHandle(procHdl) ;
                             }
                         }
@@ -1591,7 +1592,7 @@ setForegroundWin(HWND theWin, int makeTop)
     int ii, err1, err2 ;
     
     cwHwnd = GetForegroundWindow() ;
-    vwLogBasic((_T("setForegroundWin: %x -> %x %d (%x %x)\n"),(int) cwHwnd, (int) theWin,makeTop,(int) hWnd,(int) desktopHWnd)) ;
+    vwLogBasic((_T("setForegroundWin: %x -> %x makeTop: %d (%x = virtuawin, %x = desktop)\n"),(int) cwHwnd, (int) theWin,makeTop,(int) hWnd,(int) desktopHWnd)) ;
     if(theWin == NULL)
     {
         setHwnd = desktopHWnd ;
@@ -1725,6 +1726,7 @@ showSetup(void)
 
 /************************************************
  * Show the window rule dialog and perform some stuff before and after display
+ * if add=1 user clicked "add window rule," otherwise "edit window rule" 
  */
 static void
 showWindowRule(HWND theWin, int add)
@@ -1748,12 +1750,29 @@ showWindowRule(HWND theWin, int add)
         createWindowRuleDialog(hInst,hWnd,wt,theWin);
         vwLogVerbose((_T("createWindowRuleDialog returned\n"))) ;
     }
-    else if((dialogHWnd != NULL) && (GetForegroundWindow() != dialogHWnd))
+    else if ((dialogHWnd != NULL))
     {
+        if ((theWin != NULL) && !add)
+    {
+            vwMutexLock();
+            wt = NULL;
+            if ((win = vwWindowFind(theWin)) != NULL)
+                wt = (vwWindowRule *)win->zOrder[0];
+            wt = vwWindowRuleFind(theWin, wt);
+            vwMutexRelease();
+            theWin = NULL;
+        }
+
+        if (GetForegroundWindow() != dialogHWnd) {
         // setup dialog has probably been lost under the windows raise it.
         setForegroundWin(dialogHWnd,0);
         SetWindowPos(dialogHWnd,HWND_NOTOPMOST,0,0,0,0,
-                     SWP_DEFERERASE | SWP_NOSIZE | SWP_NOSENDCHANGING | SWP_NOMOVE) ;
+                SWP_DEFERERASE | SWP_NOSIZE | SWP_NOSENDCHANGING | SWP_NOMOVE); }
+        vwLogVerbose((_T("Sending new message rule\n")));
+        updateWindowRuleDialog(hInst, hWnd, wt, theWin);
+    }
+    else {
+        vwLogVerbose((_T("dialogHwnd was null, aborting\n"))); 
     }
 }
 
@@ -1891,8 +1910,8 @@ vwWindowSetSticky(vwWindow *win, int state)
         {
             if(state < 0) // toggle sticky state - set state so all owner windows are set correctly.
                 state = vwWindowIsSticky(win) ^ TRUE;
-            vwLogVerbose((_T("Setting Sticky: %x %x - %d -> %d\n"),(int) win->handle,
-                          (int) theWin,(int) vwWindowIsSticky(win),state)) ;
+            vwLogVerbose((_T("Setting Sticky: %x theWin = %x - %d -> %d\n"),(int) win->handle,
+                          (int) 1,(int) vwWindowIsSticky(win),state)) ;
             if(state)
             {
                 win->flags |= vwWINFLAGS_STICKY ;
@@ -1982,10 +2001,10 @@ enumWindowsProc(HWND hwnd, LPARAM lParam)
         {
             win = (vwWindow *) wb ;
             win->exStyle = exstyle ;
-            win->zOrder[0] = (vwUInt) wt ;
-            if((style & WS_VISIBLE) == 0)
-                vwLogBasic((_T("Got new unmanaged window %8x Proc %d Flg %x %x (%08x) %x\n"),
-                            (int)win->handle,(int)win->processId,(int)win->flags,(int) exstyle,(int)style,win->zOrder[0])) ;
+            win->wt = wt ;
+            //if((style & WS_VISIBLE) == 0)
+                //vwLogBasic((_T("Got new unmanaged window %8x Proc %d Flg %x %x (%08x) %x\n"),
+                //          (int)win->handle,(int)win->processId,(int)win->flags,(int) exstyle,(int)style,(int)win->wt)) ;
         }
         if(wt != NULL)
         {
@@ -2014,10 +2033,10 @@ enumWindowsProc(HWND hwnd, LPARAM lParam)
             win->flags |= vwWINFLAGS_MAXIMIZED ;
         win->exStyle = GetWindowLong(hwnd, GWL_EXSTYLE) ;
         memset(&(win->zOrder[1]),0,(vwDESKTOP_SIZE-1)*sizeof(vwUInt)) ;
-        win->zOrder[0] = (vwUInt) vwWindowRuleFind(hwnd,(vwWindowRule *) win->zOrder[0]) ;
+        win->wt = vwWindowRuleFind(hwnd, win->wt);
         win->menuId = 0 ;
-        vwLogBasic((_T("Started managing window %8x Proc %d Flg %x %x (%08x) %x\n"),
-                    (int)win->handle,(int)win->processId,(int)win->flags,(int)win->exStyle,(int)style,win->zOrder[0])) ;
+        vwLogBasic((_T("Started managing window %8x Proc %d Flg %x %x style (%08x) rule %x\n"),
+                    (int)win->handle,(int)win->processId,(int)win->flags,(int)win->exStyle,(int)style,(int)win->wt)) ;
         vwWindowBaseLink(wb) ;
         return TRUE ;
     }
@@ -2099,12 +2118,19 @@ enumWindowsProc(HWND hwnd, LPARAM lParam)
     return TRUE;
 }
 
+
+
+/*************************************************
+* Central window list update procedure
+*/
+
 int
 windowListUpdate(void)
 {
     HWND activeHWnd ;
     vwWindowRule *wt ;
     vwWindowBase *wb, *wbn ;
+    //vwWindowSetDesk(win, wt->desk, 1, TRUE);
     vwWindow *nw, *win, *ww ;
     RECT pos ;
     int  rc;
@@ -2152,7 +2178,7 @@ windowListUpdate(void)
         win = nw ;
         while(win != NULL)
         {
-            wt = (vwWindowRule *) win->zOrder[0] ;
+            wt = win->wt;
 
 #ifdef WIN10
             if (osVersion & OSVERSION_WIN10) {
@@ -2377,6 +2403,20 @@ windowListUpdate(void)
             else
                 activateAction = ((win->flags & vwWINFLAGS_HWACT_MASK) >> vwWINFLAGS_HWACT_BITROT) - 1 ;
             win->flags &= ~vwWINFLAGS_ACTIVATED ;
+
+            /* Review the rules to make sure the windows are on the right desk. */
+            wt = vwWindowRuleFind(win->handle, NULL);
+            if (wt != NULL)
+                win->wt = wt;
+            if (aggressiveRules && (wt != NULL) && vwWindowIsNotSticky(win) && (wt->flags & vwWTFLAGS_MOVE)
+                && (desktopUsed[wt->desk] != 0) && (wt->desk != win->desk)) {
+                vwLogBasic((_T("Moving window %x from desktop = %d to match rule desktop = %d.\n"), (int)win->handle, (int)win->desk, (int)wt->desk));
+                vwWindowSetDesk(win, wt->desk, 1, FALSE);
+                // set this window's zorder on the new desktop so it will be top
+                win->zOrder[j] = vwZOrder - 1;
+                setForegroundWin(NULL, 0);
+            }
+
             if((win->desk != currentDesk) && ((activateAction == 0) || (win->desk > nDesks)))
             {
                 vwLogBasic((_T("Ignore SWin Activation: %x (%d %d %x %x)\n"),(int) win->handle,(int) activateAction,(int) win->desk,win->flags,minWinHide)) ;
@@ -2460,7 +2500,7 @@ windowListUpdate(void)
     }
     if(activeHWnd != NULL)
         lastFGHWnd = activeHWnd ;
-    vwLogVerbose((_T("Updated winList - %d hung, newDesk %d\n"),hungCount,newDesk)) ;
+    vwLogVerboser((_T("Update winList.  hung: %d, new desk: %d, fgwin: %x, topwin: %x \n"), hungCount, newDesk, (int) GetForegroundWindow(),(int) GetTopWindow(NULL)));
     return ((newDesk << 16) | hungCount) ;
 }
 
@@ -2531,8 +2571,8 @@ static int
 vwTaskbarButtonListUpdate(void)
 {
     int ii, jj, tbCount=0, itemCount, bgsCount, psz=4 ;
-    vwUByte *dp1, *dp2;
-    vwUByte	*bgs = NULL;
+    vwUByte empty = ' '; 
+    vwUByte *dp1, *dp2 = &empty, *bgs = &empty;
     DWORD rSize;
     TCITEM tcItem;
     TBBUTTON tbItem;
@@ -2671,7 +2711,7 @@ vwTaskbarButtonListUpdate(void)
  FIXME rsmith.  On Windows 10 we don't need to monitor the timer so much because programs can be moved between desktops
  indepently of this program. 
  */
-static VOID CALLBACK
+static void CALLBACK
 monitorTimerProc(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
 {
     static vwUInt mtCount=0 ;
@@ -3081,8 +3121,8 @@ ichangeDeskProc(int newDesk, WPARAM msgWParam)
         /* assumes the left key is pressed which could lead to problems */
         if(HIWORD(GetAsyncKeyState(VK_MENU)))
         {
-            PostMessage(activeHWnd,WM_SYSKEYUP,VK_MENU,(LPARAM) 0xC0380001) ;
-            PostMessage(activeHWnd,WM_SYSKEYUP,VK_MENU,(LPARAM) 0xC1380001) ;
+            PostMessage(activeHWnd,WM_KEYUP,VK_MENU,(LPARAM) 0xC0380001) ;
+            PostMessage(activeHWnd,WM_KEYUP,VK_MENU,(LPARAM) 0xC1380001) ;
         }
         if(HIWORD(GetAsyncKeyState(VK_CONTROL)))
         {
@@ -3346,6 +3386,10 @@ stepUp(void)
     }
     return changeDesk(vwCalculateDesk(deskX,deskY),MOD_STEPUP);
 }
+
+/*************************************************
+ * Pull out the menu handling code
+ */ 
 
 /*************************************************
  * createSortedWinList_cos creates a popup menu for the window-hotkey
@@ -3750,7 +3794,7 @@ vwWindowShowHide(vwWindow* aWindow, vwUInt flags)
             aWindow->flags |= (vwWINFLAGS_SHOWN|vwWINFLAGS_SHOW) ;
             if(vwWindowIsMinimized(aWindow) && minWinHide)
             {
-                /* window is already minimised - do nothing if set to show mi8nimized window taskbar buttons,
+                /* window is already minimised - do nothing if set to show minimized window taskbar buttons,
                  * otherwise just remove the taskbar icon - this preserves the Win7 thumbnail */
                 if(((minWinHide & 0x02) == 0) && ((aWindow->flags & vwWINFLAGS_HIDETSK_MASK) != vwWTFLAGS_HIDETSK_DONT))
                 {
@@ -4332,82 +4376,89 @@ WindowInfoDialogFunc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lParam)
     switch (msg)
     {
     case WM_INITDIALOG:
+    {
+        TCHAR buff[vwCLASSNAME_MAX + vwWINDOWNAME_MAX + MAX_PATH + 256], *ss;
+        vwWindow *win;
+        HANDLE procHdl;
+        DWORD procId;
+        DWORD procSize = MAX_PATH;
+        RECT pos ;
+        int tabstops[2] ;
+
+        tabstops[0] = 10 ;
+        tabstops[1] = 52 ;
+        SendDlgItemMessage(hwndDlg,IDC_WID_INFO,EM_SETTABSTOPS,(WPARAM)2,(LPARAM)tabstops);
+        if(IsWindow(infoWin))
         {
-            TCHAR buff[vwCLASSNAME_MAX + vwWINDOWNAME_MAX + MAX_PATH + 256], *ss ;
-            vwWindow *win ;
-            HANDLE procHdl ;
-            DWORD procId, dw ;
-            RECT pos ;
-            int tabstops[2] ;
-            
-            tabstops[0] = 10 ;
-            tabstops[1] = 52 ;
-            SendDlgItemMessage(hwndDlg,IDC_WID_INFO,EM_SETTABSTOPS,(WPARAM)2,(LPARAM)tabstops);
-            if(IsWindow(infoWin))
+            static TCHAR *winHandle[3] = { _T("Standard"), _T("Move"), _T("Minimize") } ;
+            static TCHAR *tbbHandle[3] = { _T("Standard"), _T("Show"), _T("Toolwin") } ;
+            ss = buff ;
+            _tcscpy_s(ss, 708, _T("Class Name:\t"));
+            ss += _tcslen(ss) ;
+            GetClassName(infoWin,ss,vwCLASSNAME_MAX);
+            ss += _tcslen(ss) ;
+            _tcscpy_s(ss, 708, _T("\r\nWindow Name:\t"));
+            ss += _tcslen(ss) ;
+            if(!GetWindowText(infoWin,ss,vwWINDOWNAME_MAX))
+                _tcscpy_s(ss, 708, vwWTNAME_NONE);
+            ss += _tcslen(ss) ;
+            _tcscpy_s(ss, 708, _T("\r\nProcess Name:\t"));
+            ss += _tcslen(ss) ;
+            if(GetWindowThreadProcessId(infoWin,&procId) == 0)
+                procId = 0 ;
+            if (vwGetModuleFileNameEx == NULL)
+                _tcscpy_s(ss, 708, _T("<Unsupported>"));
+            else if((procId != 0) && ((procHdl=OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_VM_READ,FALSE,procId)) != NULL))
             {
-                static TCHAR *winHandle[3] = { _T("Standard"), _T("Move"), _T("Minimize") } ;
-                static TCHAR *tbbHandle[3] = { _T("Standard"), _T("Show"), _T("Toolwin") } ;
-                ss = buff ;
-                _tcscpy(ss,_T("Class Name:\t")) ;
-                ss += _tcslen(ss) ;
-                GetClassName(infoWin,ss,vwCLASSNAME_MAX);
-                ss += _tcslen(ss) ;
-                _tcscpy(ss,_T("\r\nWindow Name:\t")) ;
-                ss += _tcslen(ss) ;
-                if(!GetWindowText(infoWin,ss,vwWINDOWNAME_MAX))
-                    _tcscpy(ss,vwWTNAME_NONE);
-                ss += _tcslen(ss) ;
-                _tcscpy(ss,_T("\r\nProcess Name:\t")) ;
-                ss += _tcslen(ss) ;
-                if(GetWindowThreadProcessId(infoWin,&procId) == 0)
-                    procId = 0 ;
-                ss[0] = 0 ;
-                if((vwGetModuleFileNameEx == NULL) && (vwGetProcessImageName == NULL))
-                    _tcscpy(ss,_T("<Unsupported>"));
-                else if((procId != 0) && ((procHdl=OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_VM_READ,FALSE,procId)) != NULL))
-                {
-                    if(vwGetProcessImageName != NULL)
-                    {
-                        dw = MAX_PATH ;
-                        if(vwGetProcessImageName(procHdl,0,ss,&dw) == 0)
-                            ss[0] = 0 ;
-                    }
-                    if((ss[0] == 0) && (vwGetModuleFileNameEx != NULL) &&
-                       (vwGetModuleFileNameEx(procHdl,NULL,ss,MAX_PATH) == 0))
-                        ss[0] = 0 ;
-                    CloseHandle(procHdl) ;
-                }
-                if(ss[0] == '\0')
-                    _tcscpy(ss,_T("<Unknown>"));
-                ss += _tcslen(ss) ;
-                    
-                GetWindowRect(infoWin,&pos) ;
-                ss += _stprintf(ss,_T("\r\n\tHandle:\t%x\r\n\tProcess:\t%d\r\n\tParent:\t%x\r\n\tOwner:\t%x\r\n\tStyles:\t%08x %08x\r\n\tPosition:\t%d %d %d %d\r\n\r\nThis window is "),
+                // vwGetModuleFileNameEx(procHdl,NULL,ss,MAX_PATH) ;
+                QueryFullProcessImageName(procHdl, 0, ss, &procSize);
+                CloseHandle(procHdl);
+                ss += procSize;
+            }
+            if (ss[0] == '\0')  {
+                _tcscpy_s(ss, 708, _T("<Unknown>"));
+                ss += 9;
+            }
+            GetWindowRect(infoWin,&pos) ;
+            ss += _stprintf_s(ss, 708, _T("\r\n\tHandle:\t%x\r\n\tProcess:\t%d\r\n\tParent:\t%x\r\n\tOwner:\t%x\r\n\tStyles:\t%08x %08x\r\n\tPosition:\t%d %d %d %d\r\n\r\nThis window is "),
                                 (int)infoWin,(int)procId,(int)GetParent(infoWin),(int)GetWindow(infoWin,GW_OWNER),
                                 (int)GetWindowLong(infoWin,GWL_STYLE),(int)GetWindowLong(infoWin,GWL_EXSTYLE),
                                 (int)pos.top,(int)pos.bottom,(int)pos.left,(int)pos.right) ;
-                
-                vwMutexLock();
-                windowListUpdate() ;
-                win = (vwWindow *) vwWindowBaseFind(infoWin) ;
-                if(win == NULL)
-                    _tcscpy(ss,_T("not managed\r\n")) ;
-                else if(vwWindowIsManaged(win))
-                    _stprintf(ss,_T("being managed\r\n\tProc:\t%x\r\n\tLink:\t%x\r\n\tFlags:\t%08x\r\n\tExStyle:\t%08x\r\n\tDesk:\t%d\r\n\tHandling:\t%s, %s\r\n"),
+            vwMutexLock();
+            windowListUpdate() ;
+            win = (vwWindow *) vwWindowBaseFind(infoWin) ;
+            if(win == NULL)
+                _tcscpy_s(ss, 708, _T("not managed\r\n"));
+            else if (vwWindowIsManaged(win)) {
+                ss += _stprintf_s(ss, 708, _T("being managed\r\n\tProc:\t%x\r\n\tLink:\t%x\r\n\tFlags:\t%08x\r\n\tExStyle:\t%08x\r\n\tDesk:\t%d\r\n\tHandling:\t%s, %s\r\n"),
                               (int)((win->processNext == NULL) ? 0:win->processNext->handle),(int)((win->linkedNext == NULL) ? 0:win->linkedNext->handle),
                               (int)win->flags,(int)win->exStyle,(int)win->desk,
                               winHandle[(win->flags & vwWTFLAGS_HIDEWIN_MASK) >> vwWTFLAGS_HIDEWIN_BITROT],
                               tbbHandle[(win->flags & vwWTFLAGS_HIDETSK_MASK) >> vwWTFLAGS_HIDETSK_BITROT]) ;
+
+                if (win->wt != NULL) {
+
+                    if (win->wt->desk != 0)
+                        _stprintf_s(ss, 708, _T("This window is assigned to desktop %x.\r\n\tMatch:"), (int)win->wt->desk);                     
+                    else
+                        _stprintf_s(ss, 708, _T("This window has a rule assigned with no desktop.\r\n\tMatch:"));
+                    ss += _tcslen(ss);
+                    windowRuleFormatDescription(ss, win->wt);
+                }
                 else
-                    _stprintf(ss,_T("not managed\r\n\tFlags:\t%08x\r\n"),(int)win->flags) ;
-                vwMutexRelease();
+                    _stprintf_s(ss, 708, _T("This window has no rule assigned."));
             }
             else
-                _tcscpy(buff,_T("Window has been closed.")) ;
-            SetDlgItemText(hwndDlg,IDC_WID_INFO,buff) ;
-            return TRUE;
+                _stprintf_s(ss, 708, _T("not managed\r\n\tFlags:\t%08x\r\n"), (int)win->flags);
+
+            vwMutexRelease();
         }
-        
+        else
+            _tcscpy_s(buff, 708, _T("Window has been closed."));
+        SetDlgItemText(hwndDlg,IDC_WID_INFO,buff) ;
+        return TRUE;
+    }
+
     case WM_COMMAND:
         if(LOWORD(wParam) != IDCANCEL)
             break;
@@ -4495,7 +4546,7 @@ popupWindowMenu(HWND theWin, int wmFlags)
                 buff[18] = '\0' ;
             AppendMenu(moveMenu,(ii == currentDesk) ? (MF_STRING|MF_GRAYED):MF_STRING,ID_DESK_N+ii,buff) ;
         }
-        wt = vwWindowRuleFind(theWin,(vwWindowRule *) win->zOrder[0]) ;
+        wt = vwWindowRuleFind(theWin, win->wt);
     }
     else
         AppendMenu(hpopup,MF_STRING,ID_WM_MANAGE,_T("&Manage Window"));
@@ -4767,6 +4818,8 @@ popupWinListMenu(HWND aHWnd, int wlFlags)
         }
         else
             ii = wlcFlags ;
+
+        //Attempt to create the menu
         if((hpopup = winListCreateMenu(ii,itemCount,items)) == NULL)
             break ;
 
@@ -4867,6 +4920,74 @@ vwWindowRuleReapply(void)
         initialized = TRUE ;
     }
     vwMutexRelease() ;
+}
+
+void
+vwLogWindows(void)
+{
+    TCHAR cname[vwCLASSNAME_MAX + 1], wname[vwWINDOWNAME_MAX + 1], pname[MAX_PATH];
+    cname[0] = wname[0] = _T('"');
+    vwWindowBase *wb;
+    vwWindow *win;
+    RECT pos;
+    HANDLE procHdl;
+    DWORD procId;
+    int tgtDesk;
+    DWORD maxpathD;
+
+
+    vwMutexLock();
+    windowListUpdate();
+    wb = windowBaseList;
+    while (wb != NULL)
+    {
+        GetWindowRect(wb->handle, &pos);
+        GetClassName(wb->handle, cname + 1, vwCLASSNAME_MAX);
+        if (!GetWindowText(wb->handle, wname + 1, vwWINDOWNAME_MAX))
+            _tcscpy_s(wname + 1, vwWINDOWNAME_MAX, vwWTNAME_NONE);
+
+        pname[0] = '\0';
+        if (GetWindowThreadProcessId(wb->handle, &procId) == 0) {
+            _tcscpy_s(pname, MAX_PATH, _T("*GetWindowThreadProcessId Failed*"));
+            procId = 0;
+        }
+        if (vwGetModuleFileNameEx == NULL)
+            _tcscpy_s(pname, MAX_PATH, _T("<Unsupported>"));
+        else if ((procId != 0) && ((procHdl = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, procId)) != NULL))
+        {
+            maxpathD = MAX_PATH;
+            QueryFullProcessImageName(procHdl, 0, pname, &maxpathD);
+            // vwGetModuleFileNameEx(procHdl, NULL, pname, MAX_PATH);
+            //GetProcessImageFileName(procHdl, pname, MAX_PATH); 
+            CloseHandle(procHdl);
+        }
+        if (pname[0] == '\0')
+            _tcscpy_s(pname, MAX_PATH, _T("<Unknown>"));
+
+
+        if (wb->flags & vwWINFLAGS_MANAGED)
+        {
+            win = (vwWindow *)wb;
+            if (win->wt != NULL)
+                tgtDesk = (int)win->wt->desk;
+            else
+                tgtDesk = 0;
+
+            vwLogBasic((_T("MNG-WIN: %8x Flg %08x Sty %08x %08x Proc %6d %8x Own %8x Link %8x Desk %d tgtDesk %d\nTitle: %-50.50s\"\t Class: %-40.40s\"\t Proc: %s;\t Pos (%d,%d)\n\n"),
+                (int)wb->handle, (int)wb->flags, (int)GetWindowLong(wb->handle, GWL_STYLE), (int)GetWindowLong(wb->handle, GWL_EXSTYLE),
+                (int)win->processId, (int)((win->processNext == NULL) ? 0 : win->processNext->handle), (UINT)GetWindow(wb->handle, GW_OWNER),
+                (int)((win->linkedNext == NULL) ? 0 : win->linkedNext->handle), (int)win->desk, tgtDesk, wname, cname, pname, (int)pos.left, (int)pos.top));
+        }
+        else if ((_tcscmp(cname + 1, _T("Static")) || _tcscmp(wname + 1, vwWTNAME_NONE)) && (_tcscmp(cname + 1, _T("IME")) || _tcscmp(wname + 1, _T("Default IME"))))
+            vwLogBasic((_T("%s-WIN: %8x Flg %08x Sty %08x %08x Own %8x Title %-40.40s\";    Class %-40.40s\";    Pos (%d,%d)\n"),
+            (wb->flags & vwWINFLAGS_WINDOW) ? _T("UNM") : _T("NON"),
+            (int)wb->handle, (int)wb->flags, (int)GetWindowLong(wb->handle, GWL_STYLE), (int)GetWindowLong(wb->handle, GWL_EXSTYLE),
+            (UINT)GetWindow(wb->handle, GW_OWNER), wname, cname, (int)pos.left, (int)pos.top));
+
+
+        wb = wb->next;
+    }
+    vwMutexRelease();
 }
 
 static void
@@ -5004,6 +5125,8 @@ popupControlMenu(HWND aHWnd, int cmFlags)
     AppendMenu(hpopup,MF_STRING,ID_DISABLE,(vwIsEnabled()) ? _T("&Disable") : _T("&Enable"));
     insertMenuItems(hpopup,1000,&mi,&mid) ;
     AppendMenu(hpopup,MF_SEPARATOR,0,NULL) ;
+    insertMenuItems(hpopup, 1050, &mi, &mid);
+    AppendMenu(hpopup, MF_STRING, ID_LOGWINDOWS, _T("&Log windows"));
     insertMenuItems(hpopup,1100,&mi,&mid) ;
     AppendMenu(hpopup,MF_STRING,ID_EXIT,_T("E&xit VirtuaWin"));
     if(vwIsEnabled())
@@ -5087,6 +5210,9 @@ popupControlMenu(HWND aHWnd, int cmFlags)
         break;
     case ID_DISABLE:    // Disable VirtuaWin
         vwToggleEnabled(0) ;
+        break;
+    case ID_LOGWINDOWS:
+        vwLogWindows(); // Write log to file
         break;
     case ID_EXIT:       // exit application
         DestroyWindow(aHWnd);

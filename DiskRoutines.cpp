@@ -21,6 +21,8 @@
 //  USA.
 //
 
+#define _CRT_SECURE_NO_WARNINGS
+#define _CRT_NON_CONFORMING_SWPRINTFS
 #include "VirtuaWin.h"
 #include <stdlib.h>
 #include <string.h>
@@ -90,17 +92,18 @@ static void getUserAppPath(TCHAR *path)
     LPITEMIDLIST idList ;
 #endif
     TCHAR buff[MAX_PATH], *ss, *se, cc ;
-    FILE *fp ;
+    FILE *fp;
+    size_t pssSize; 
     int len ;
 
     path[0] = '\0' ;
 
     /* look for a userpath.cfg file */
-    _tcscpy_s(buff,_countof(buff),VirtuaWinPath) ;
-    _tcscat_s(buff,_countof(buff),_T("userpath.cfg")) ;
-    if((fp = _tfopen(buff,_T("r"))) != NULL)
+    _tcscpy_s(buff, 260, VirtuaWinPath);
+    _tcscat_s(buff, 260, _T("userpath.cfg"));
+    if ((fp = _tfopen(buff, _T("r"))) != NULL)
     {
-        if((_fgetts(buff,MAX_PATH,fp) != NULL) && (buff[0] != '\0'))
+        if((_fgetts(buff,MAX_PATH,fp) == 0) && (buff[0] != '\0'))
         {
             len = 0 ;
             ss = buff ;
@@ -112,10 +115,10 @@ static void getUserAppPath(TCHAR *path)
                     if(!_tcscmp(ss+1,_T("VIRTUAWIN_PATH")))
                         ss = VirtuaWinPath ;
                     else
-                        ss = _tgetenv(ss+1) ;
+                        _tgetenv_s(&pssSize, ss, 260, ss + 1);
                     if(ss != NULL)
                     {
-                        _tcscpy(path+len,ss) ;
+                        _tcscpy_s(path + len, 260, ss);
                         len += _tcslen(ss) ;
                     }
                     ss = se ;
@@ -157,7 +160,7 @@ static void getUserAppPath(TCHAR *path)
             len = _tcslen(path) ;
             if(path[len - 1] != '\\')
                 path[len++] = '\\' ;
-            _tcsncpy(path+len,VIRTUAWIN_SUBDIR,MAX_PATH - len) ;
+            _tcsncpy_s(path + len, 200, VIRTUAWIN_SUBDIR, MAX_PATH - len);
             len += _tcslen(path+len) ;
             path[len++] = '\\' ;
             path[len] = '\0' ;
@@ -216,11 +219,11 @@ GetFilename(eFileNames filetype, int location, TCHAR *outStr)
         }
 #ifdef _UNICODE
         if(WideCharToMultiByte(CP_ACP,0,VirtuaWinPath,-1,(char *) path,MAX_PATH, 0, 0))
-            VirtuaWinPathStr = strdup((char *) path) ;
+            VirtuaWinPathStr = _strdup((char *) path) ;
         if(UserAppPath == VirtuaWinPath)
             UserAppPathStr = VirtuaWinPathStr ;
         else if(WideCharToMultiByte(CP_ACP,0,UserAppPath,-1,(char *) path,MAX_PATH, 0, 0))
-            UserAppPathStr = strdup((char *) path) ;
+            UserAppPathStr = _strdup((char *) path) ;
 #endif
     }
 
@@ -255,7 +258,7 @@ loadDisabledModules(vwDisModule *theDisList)
                     buff[vwMODULENAME_MAX] = '\0' ;
                 else if(buff[len-1] == '\n')
                     buff[len-1] = '\0' ;
-                _tcscpy(theDisList[nOfDisMod++].moduleName,buff);
+                _tcscpy_s(theDisList[nOfDisMod++].moduleName, 80, buff);
                 if(nOfDisMod == (MAXMODULES * 2))
                     break ;
             }
@@ -275,7 +278,7 @@ saveDisabledList(int theNOfModules, vwModule *theModList)
     FILE* fp;
 
     GetFilename(VWMODULE_CFG,1,DisabledFileList);
-    if(!(fp = _tfopen(DisabledFileList,_T("w"))))
+    if ((fp = _tfopen(DisabledFileList, _T("w"))) == NULL)
         MessageBox(hWnd,_T("Error saving disabled module state"),vwVIRTUAWIN_NAME _T(" Error"),MB_ICONERROR);
     else
     {
@@ -312,12 +315,16 @@ loadWindowConfig(void)
             } while(--ii >= 0) ;
             free(wt) ;
         }
-        /* set all window zOrder[0] (used to store the vwWindowRules) to 0 */
+
+        /* set existing vwWindowRules to NULL */
         win = (vwWindow *) windowBaseList ;
         while(win != NULL)
         {
             if(win->flags & vwWINFLAGS_WINDOW)
+            {
                 win->zOrder[0] = 0 ;
+                win->wt = NULL;
+            }
             win = win->next ;
         }
     }
@@ -398,13 +405,16 @@ void
 saveWindowConfig(void)
 {
     TCHAR fname[MAX_PATH];
-    vwWindowRule *wt ;
-    FILE *fp ;
+    vwWindowRule *wt;
+    FILE *fp = NULL;
     int ii ;
 
     GetFilename(VWWINDOW_CFG,1,fname);
-    if((fp = _tfopen(fname,_T("w"))) == NULL)
-        MessageBox(NULL,_T("Error writing window.cfg file"),vwVIRTUAWIN_NAME _T(" Error"),MB_ICONERROR);
+    if ((fp = _tfopen(fname, _T("w"))) == NULL) {
+        TCHAR buff[40];
+        _stprintf(buff, _T("Error writing %s. \nReason: %s"), fname, _tcserror(errno) );
+        MessageBox(NULL, buff, vwVIRTUAWIN_NAME _T(" Error"), MB_ICONERROR);
+    }
     else
     {
         wt = windowRuleList ;
@@ -461,8 +471,8 @@ addOldHotkey(int key, int mod, int win, int cmd, int desk)
 void
 loadVirtuawinConfig(void)
 {
-    TCHAR buff[MAX_PATH], buff2[2048], *ss ;
-    FILE *fp, *wfp;
+    TCHAR buff[MAX_PATH], buff2[2048], err[40], * ss;
+    FILE *fp = NULL, *wfp = NULL;
     int ii, jj, ll, hk[4] ;
 
     eFileNames filename;
@@ -485,7 +495,7 @@ loadVirtuawinConfig(void)
             if(((GetFileAttributes(buff) & (0xf0000000|FILE_ATTRIBUTE_DIRECTORY)) != FILE_ATTRIBUTE_DIRECTORY) &&
                (CreateDirectory(buff,NULL) == 0))
             {
-                _stprintf(buff2,vwVIRTUAWIN_NAME _T(" cannot create the user config directory:\n\n    %s\n\nPlease check file permissions. If you continue to have problems, send e-mail to:\n\n    ") vwVIRTUAWIN_EMAIL,buff);
+                _stprintf_s(buff2,2048, vwVIRTUAWIN_NAME _T(" cannot create the user config directory:\n\n    %s\n\nPlease check file permissions. If you continue to have problems, send e-mail to:\n\n    ") vwVIRTUAWIN_EMAIL,buff);
                 MessageBox(hWnd,buff2,vwVIRTUAWIN_NAME _T(" Error"),MB_ICONERROR);
                 exit(1) ;
             }
@@ -502,11 +512,18 @@ loadVirtuawinConfig(void)
             while(filename >= VWVIRTUAWIN_CFG)
             {
                 GetFilename(filename,0,buff);
+                OutputDebugString(_T("Trying to open "));
+                OutputDebugString(buff);
+                OutputDebugString(_T("\n"));
                 if((fp = _tfopen(buff,_T("rb"))) != NULL)
                 {
                     GetFilename(filename,1,buff2);
+                    OutputDebugString(_T("\nTrying to create "));
+                    OutputDebugString(buff2);
+                    OutputDebugString(_T("\n"));
                     if((wfp = _tfopen(buff2,_T("wb"))) == NULL)
                         break ;
+                    OutputDebugString(_T("Copying new file.\n"));
                     for(;;)
                     {
                         if((jj=fread(buff2,1,2048,fp)) <= 0)
@@ -521,6 +538,11 @@ loadVirtuawinConfig(void)
                     if((fclose(wfp) != 0) || (jj < 0))
                         break ;
                 }
+                else {
+                    _tcserror_s(err, 40, errno);
+                    _stprintf_s(buff2, 2048, _T("Could not open. Reason: %s"), err);
+                    OutputDebugString(buff2);
+                }
                 filename--;
             } // while
         }
@@ -533,24 +555,44 @@ loadVirtuawinConfig(void)
         }
         GetFilename(VWVIRTUAWIN_CFG,1,buff);
         /* check a main config file has been copied, if not create a dummy one */
-        if((filename < VWVIRTUAWIN_CFG) && (fp == NULL) &&
-           (((wfp = _tfopen(buff,_T("wb"))) == NULL) ||
-            (fwrite(defaultCfg,strlen(defaultCfg),1,wfp) != 1) || (fclose(wfp) != 0)))
-            filename = VWVIRTUAWIN_CFG ;
+
+        if ((filename < VWVIRTUAWIN_CFG) && (fp == NULL)) {           
+            if ((wfp = _tfopen(buff, _T("wb"))) != NULL) {
+                size_t written = fwrite(defaultCfg, strlen(defaultCfg), 1, wfp);
+                if (written > 1) {
+                    if (fclose(wfp) != 0) {
+                        filename = VWVIRTUAWIN_CFG;
+                        _stprintf_s(buff2, 20, _T("No error!"));
+                    }
+                    else {
+                        _stprintf_s(buff2, 20, _T("Error closing file"));
+                    }
+                }
+                else {
+                    _stprintf_s(buff2, 20, _T("Error writing file"));
+                }
+            }
+            else {
+                _stprintf_s(buff2, 20, _T("Error opening file"));
+            }
+        }
+
         /* check we did not break out due to an error and virtuawin.cfg was found */
         if(filename >= VWVIRTUAWIN_CFG)
         {
-            MessageBox(hWnd,_T("Error occurred creating new user configuration, please check installation & file permissions.\nIf you continue to have problems, send e-mail to:\n\n    ") vwVIRTUAWIN_EMAIL,vwVIRTUAWIN_NAME _T(" Error"),MB_ICONERROR);
+            _stprintf_s(buff2, 2048, _T("Error creating new user configuration, please check installation & file permissions.\nIf you continue to have problems, send e-mail to:\n\n    " vwVIRTUAWIN_EMAIL), buff2);
+            MessageBox(hWnd, buff2, vwVIRTUAWIN_NAME _T(" Error"), MB_ICONERROR);
             exit(1) ;
         }
-        _stprintf(buff2,_T("Welcome to %s\n\nA new user configuration has been created in directory:\n\n    %s\n\nRight click on tray icon to access the Setup dialog."),vwVIRTUAWIN_NAME_VERSION,UserAppPath) ;
+        _stprintf_s(buff2,2048, _T("Welcome to %s\n\nA new user configuration has been created in directory:\n\n    %s\n\nRight click on tray icon to access the Setup dialog."),vwVIRTUAWIN_NAME_VERSION,UserAppPath) ;
         MessageBox(hWnd,buff2,vwVIRTUAWIN_NAME,MB_ICONINFORMATION);
     }
 
     /* Is file readable at all? */
     if((fp = _tfopen(buff,_T("r"))) == NULL)
     {
-        _stprintf(buff2,_T("Error reading config file:\n\n    %s\n\nPlease check file permissions. If you continue to have problems, send e-mail to:\n\n    ") vwVIRTUAWIN_EMAIL,buff);
+        _tcserror_s(err, 40, errno);
+        _stprintf_s(buff2,2048, _T("Error reading config file:\n\n    %s\n\nReason: %s.\n\n If you continue to have problems, send e-mail to:\n\n    ") vwVIRTUAWIN_EMAIL,buff, err);
         MessageBox(hWnd,buff2,vwVIRTUAWIN_NAME _T(" Error"),MB_ICONERROR) ;
         exit(1) ;
     }
@@ -558,7 +600,7 @@ loadVirtuawinConfig(void)
     if(fscanf(fp, "%s%d", (char *) buff2, &ii) != 2)
     {
         fclose(fp);
-        _stprintf(buff2,_T("Error reading config file:\n\n    %s\n\nFile empty or corrupt, please remove."), buff);
+        _stprintf_s(buff2,2048, _T("Error reading config file:\n\n    %s\n\nFile empty or corrupt, please remove."), buff);
         MessageBox(hWnd, buff2, vwVIRTUAWIN_NAME _T(" Error"), MB_ICONERROR) ;
         exit(1) ;
     }
@@ -771,6 +813,7 @@ loadVirtuawinConfig(void)
         vwConfigReadInt(fp,buff,ii,winMenuCompact);
         vwConfigReadInt(fp,buff,ii,useDynButtonRm);
         vwConfigReadInt(fp,buff,ii,hotkeyMenuLoc);
+        vwConfigReadInt(fp,buff,ii,aggressiveRules);
         vwConfigReadInt(fp,buff,ii,vwHookUse);
         vwConfigReadInt(fp,buff,ii,useDskChgModRelease);
         vwConfigReadInt(fp,buff,ii,initialDesktop);
@@ -781,7 +824,7 @@ loadVirtuawinConfig(void)
     else
     {
         fclose(fp);
-        _stprintf(buff2,_T("Error reading config file:\n\n    %s\n\nUnsupported version %d, please remove."), buff, ii);
+        _stprintf_s(buff2,2048, _T("Error reading config file:\n\n    %s\n\nUnsupported version %d, please remove."), buff, ii);
         MessageBox(hWnd, buff2, vwVIRTUAWIN_NAME _T(" Error"), MB_ICONERROR) ;
         exit(1);
     }
@@ -841,6 +884,7 @@ saveVirtuawinConfig(void)
         fprintf(fp, "winMenuCompact# %d\n", winMenuCompact);
         fprintf(fp, "useDynButtonRm# %d\n", useDynButtonRm);
         fprintf(fp, "hotkeyMenuLoc# %d\n", hotkeyMenuLoc);
+        fprintf(fp, "aggressiveRules# %d\n", aggressiveRules);
         fprintf(fp, "vwHookUse# %d\n", vwHookUse);
         fprintf(fp, "useDskChgModRelease# %d\n", useDskChgModRelease);
         fprintf(fp, "initialDesktop# %d\n", initialDesktop);

@@ -4,6 +4,7 @@
 // 
 //  Copyright (c) 1999-2005 Johan Piculell
 //  Copyright (c) 2006-2014 VirtuaWin (VirtuaWin@home.se)
+//  Copyright (c) 2017      VirtuaWin (rtsmith134@gmail.com)
 // 
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -61,6 +62,12 @@ extern FILE *vwLogFile ;
 #define vwLogEnabled()        (vwLogFile != NULL)
 #define vwLogBasic(a)         (vwLogEnabled() ? vwLogPrint a :0)
 
+#ifdef vwLOG_VERBOSER
+#define vwLogVerboser(a)       vwLogVerbose(a)
+#else
+#define vwLogVerboser(a)
+#endif
+
 #ifdef vwLOG_VERBOSE
 #define vwLogVerbose(a)       (vwLogEnabled() ? vwLogPrint a :0)
 #else
@@ -83,6 +90,7 @@ void vwHotkeyUnregister(int unregAll) ;
 void getWorkArea(void) ;
 int  windowListUpdate(void) ;
 void vwWindowRuleReapply(void) ;
+void vwLogWindows(void); 
 int  disableDeskImage(int count) ;
 int  createDeskImage(int deskNo, int createDefault) ;
 void setForegroundWin(HWND theWin, int makeTop) ;
@@ -97,6 +105,8 @@ void storeDesktopProperties(void) ;
 
 /* Prototypes from WinRuleDialog.c */
 void createWindowRuleDialog(HINSTANCE theHinst, HWND theHwndOwner, vwWindowRule *wtype, HWND theWin) ;
+void updateWindowRuleDialog(HINSTANCE theHinst, HWND theHwndOwner, vwWindowRule *wtype, HWND theWin) ;
+void windowRuleFormatDescription(TCHAR* ss, vwWindowRule *wt); 
 
 /* Prototypes from ModuleRoutines.c */
 void vwModulesLoad(void);

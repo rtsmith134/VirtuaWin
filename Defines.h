@@ -148,6 +148,8 @@ typedef struct vwWindow {
     vwUInt               zOrder[vwDESKTOP_SIZE] ;
     vwUByte              menuId ;
     vwUByte              desk;
+	vwUByte              assignedDesk;
+	vwWindowRule        *wt; 
 } vwWindow ;
 
 /* Holds data for modules */
