@@ -26,13 +26,6 @@
 
 #include <windows.h>
 
-/* Application name and version defines */
-#define vwVIRTUAWIN_NAME         _T("VirtuaWin")
-#define vwVIRTUAWIN_CLASSNAME    _T("VirtuaWinMainClass")
-#define vwVIRTUAWIN_EMAIL        _T("VirtuaWin@home.se")
-#define vwVIRTUAWIN_NAME_VERSION _T("VirtuaWin v4.4")
-#define vwVIRTUAWIN_WEBSITE      _T("http://virtuawin.sourceforge.net/")
-#define vwVIRTUAWIN_MODULES_URL  vwVIRTUAWIN_WEBSITE _T("modules.php")
 
 /* Various defines used on several places */
 #define vwHOTKEY_MAX      80       /* max number of hotkeys */
