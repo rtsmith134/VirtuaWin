@@ -228,7 +228,7 @@ storeDesktopProperties(void)
 
 /*************************************************
  * The "General" tab callback
- * This is the firts callback to be called when the property sheet is created
+ * This is the first callback to be called when the property sheet is created
  */
 BOOL APIENTRY
 setupGeneral(HWND hDlg, UINT message, UINT wParam, LONG lParam)
