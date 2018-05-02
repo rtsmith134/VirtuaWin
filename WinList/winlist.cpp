@@ -29,6 +29,7 @@
 #include <tchar.h>
 
 #include "winlistres.h"
+#include "../Resource.h"
 #include "../Defines.h"
 #include "../Messages.h"
 
@@ -301,7 +302,7 @@ enumWindowsSaveListProc(HWND hwnd, LPARAM lParam)
     GetWindowRect(hwnd,&pos);
 #ifdef _UNICODE
     GetClassName(hwnd,nameW,vwCLASSNAME_MAX);
-    WideCharToMultiByte(CP_ACP,0,nameW,-1,class,vwCLASSNAME_MAX, 0, 0) ;
+    WideCharToMultiByte(CP_ACP,0,nameW,-1,classname,vwCLASSNAME_MAX, 0, 0) ;
     if(GetWindowText(hwnd,nameW,vwWINDOWNAME_MAX))
         WideCharToMultiByte(CP_ACP,0,nameW,-1,text,vwWINDOWNAME_MAX, 0, 0) ;
     else

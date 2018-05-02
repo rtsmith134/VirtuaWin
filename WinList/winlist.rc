@@ -1,8 +1,7 @@
 #include <windows.h>
-#include "../Defines.h"
+#include "../Resource.h"
 #include "winlistres.h"
 
-#define _T(x) x
 
 IDI_VIRTUAWIN ICON "../Icons/virtuawin.ico"
 
