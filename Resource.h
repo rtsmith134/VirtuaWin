@@ -1,5 +1,16 @@
 #ifndef _RESOURCE_H_
 #define _RESOURCE_H
+#include <windows.h>
+//#include <tchar.h>
+//#define _T(x) x
+
+/* Application name and version defines */
+#define vwVIRTUAWIN_NAME         TEXT("VirtuaWin")
+#define vwVIRTUAWIN_CLASSNAME    TEXT("VirtuaWinMainClass")
+#define vwVIRTUAWIN_EMAIL        TEXT("VirtuaWin@home.se")
+#define vwVIRTUAWIN_NAME_VERSION TEXT("VirtuaWin v5.0")
+#define vwVIRTUAWIN_WEBSITE      TEXT("http://virtuawin.sourceforge.net/")
+#define vwVIRTUAWIN_MODULES_URL  TEXT("http://virtuawin.sourceforge.net/modules.php")
 
 #define IDC_STATIC      -1
 #define IDD_PROPPAGE_GENERAL    100
@@ -31,7 +42,18 @@
 #define IDI_ST_7           127
 #define IDI_ST_8           128
 #define IDI_ST_9           129
-#define IDI_CHECK          130
+#define IDI_ST_10          130
+#define IDI_ST_11          131
+#define IDI_ST_12          132
+#define IDI_ST_13          133
+#define IDI_ST_14          134
+#define IDI_ST_15          135
+#define IDI_ST_16          136
+#define IDI_ST_17          137
+#define IDI_ST_18          138
+#define IDI_ST_19          139
+#define IDI_ST_20          140
+#define IDI_CHECK          141
 #define IDC_DESKTOPLBL    1001
 #define IDC_DESKTOPBTN    1002
 #define IDC_DESKTOPNAME   1003
