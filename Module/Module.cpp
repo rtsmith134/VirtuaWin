@@ -55,7 +55,7 @@ DisplayInfo(HWND hwnd, TCHAR *msgLabel)
         exit(1) ;
     }
     if(deskName[0] == '\0')
-        _stprintf(deskName,"<Desktop %d>",currentDesk) ;
+        _stprintf(deskName,_T("<Desktop %d>"),currentDesk) ;
     _stprintf(buff,_T("Desktop Size:\t%d\nInstall path:\t%s\t\nUser path:\t%s\t\n\nVW Message:\t%s\nDesk Layout:\t%d x %d\nCurrent Desk:\t%d\nDesk Name:\t%s"),
               deskSize,installPath,userAppPath,msgLabel,deskX,deskY,currentDesk,deskName) ;
     MessageBox(hwnd,buff,_T("VirtuaWin Module Example"),0);
