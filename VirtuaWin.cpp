@@ -668,7 +668,11 @@ vwIconSet(int deskNumber, int hungCount)
             hungCount = 0 - hungCount ;
         }
         else
+        {
+            if (deskNumber > 20)
+                deskNumber = 20;
             nIconD.hIcon = icons[deskNumber];
+        }
         ll = 0 ;
         if(hungCount)
             ll = _stprintf(nIconD.szTip,_T("%d window%s not responding\n"),hungCount,(hungCount==1) ? _T(""):_T("s")) ;
@@ -766,13 +770,13 @@ vwIconLoad(void)
             ss = buff+6 ;
             if(ii > 9)
             {
-                *ss++ = _T((ii/10)+'0') ;
-                *ss++ = _T((ii%10)+'0') ;
+                *ss++ = _T('0')+(ii/10);
+                *ss++ = _T('0')+(ii%10);
                 *ss++ = '\0';
             }
             else
             {
-                *ss++ = _T(ii + '0');
+                *ss++ = _T('0')+ii;
                 *ss++ = '\0';
             }
             _tcscat(buff, _T(".ico")) ;
@@ -789,7 +793,7 @@ vwIconLoad(void)
 
 
 /************************************************
- * Setup vwHook - used to fix winodw activation issues
+ * Setup vwHook - used to fix window activation issues
  */
 void
 vwHookSetup(void)
@@ -3475,16 +3479,16 @@ winListCreateItemList(int flags, vwListItem **items,int *numitems)
             DWORD dIcon ;
             
             if(nDesks <= 9)
-                title[0] = _T(win->desk + '0') ;
+                title[0] = _T('0')+ win->desk;
             else if(win->desk >= 10)
             {
-                title[0] = _T((win->desk / 10) + '0') ;
-                title[1] = _T((win->desk % 10) + '0') ;
+                title[0] = _T('0')+(win->desk / 10);
+                title[1] = _T('0')+(win->desk % 10);
             }
             else
             {
                 title[0] = _T(' ') ;
-                title[1] = _T(win->desk + '0');
+                title[1] = _T('0')+(win->desk);
             }
             GetWindowText(win->handle, buff, len);
             
@@ -3616,8 +3620,8 @@ winListCreateMenuTitleLine(HMENU hMenu, MENUITEMINFO *minfo, int offset, int des
     _tcscpy(buff, _T("Desktop ")) ;
     ss = &buff[0] + 8 ;
     if(desktopNo >= 10)
-        *ss++ = _T((desktopNo/10)+'0') ;
-    *ss++ = _T((desktopNo%10)+'0') ;
+        *ss++ = _T('0')+(desktopNo/10);
+    *ss++ = _T('0')+(desktopNo%10);
     *ss++ = _T(':') ;
     if(desktopName[desktopNo] != NULL)
     {
@@ -5048,8 +5052,8 @@ static LRESULT popupControl_Move_to_Desktop(HMENU hpopup)
     _tcscpy(buff,_T("Move to Desktop & ")) ;
     for(ii = 1 ; ii <= nDesks ; ii++)   {
         if(ii >= 10)
-            buff[16] = _T((ii/10)+'0') ;
-        buff[17] = _T((ii%10)+'0') ;
+            buff[16] = _T('0')+(ii/10);
+        buff[17] = _T('0')+(ii%10);
         // If the desktop has a descriptive name assigned then append it to the buffer
         if(desktopName[ii] != NULL)
         {
