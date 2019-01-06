@@ -1,3 +1,4 @@
+#pragma once
 //
 //  VirtuaWin - Virtual Desktop Manager (virtuawin.sourceforge.net)
 //  VirtuaWin.h - Main variable and function definitions.
@@ -22,8 +23,6 @@
 //  USA.
 //
 
-#ifndef _VIRTUAWIN_H_
-#define _VIRTUAWIN_H_
 
 #include <windows.h>
 #include <stdio.h>
@@ -83,7 +82,7 @@ void enableMouse(int turnOn) ;
 void setMouseKey(void) ;
 void vwHookSetup(void) ;
 void vwIconLoad(void) ;
-void vwIconSet(int deskNumber, int hungCount) ;
+void vwIconSet(LONG_PTR deskNumber, int hungCount) ;
 void vwTaskbarHandleGet(void) ;
 void vwHotkeyRegister(int warnAll) ;
 void vwHotkeyUnregister(int unregAll) ;
@@ -115,4 +114,3 @@ void vwModulesPostMessage(UINT Msg, WPARAM wParam, LPARAM lParam);
 void vwModuleLoad(int moduleIdx, TCHAR *path);
 void vwModuleUnLoad();
 
-#endif
