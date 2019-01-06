@@ -23,7 +23,7 @@
 //
 
 // Includes
-#define _CRT_SECURE_NO_WARNINGS
+//#define _CRT_SECURE_NO_WARNINGS
 #define vwLOG_VERBOSE
 #include "VirtuaWin.h"
 #include "DiskRoutines.h"
@@ -388,7 +388,7 @@ checkMousePosition(void)
     LPARAM lParam ;
     HWND hwnd ;
     POINT pt ;
-    DWORD rr ;
+    DWORD_PTR rr ;
     
     GetCursorPos(&pt);
     if((hwnd=WindowFromPoint(pt)) == NULL)
@@ -657,7 +657,7 @@ enableMouse(int turnOn)
  * Sets the icon in the systray and updates the currentDesk variable
  */
 void
-vwIconSet(int deskNumber, int hungCount)
+vwIconSet(LONG_PTR deskNumber, int hungCount)
 {
     if(displayTaskbarIcon && ((taskbarIconShown & 0x02) == 0))
     {
@@ -2481,8 +2481,8 @@ windowListUpdate(void)
         if((win->flags & (vwWINFLAGS_ELEVATED_TEST|vwWINFLAGS_ELEVATED)) == vwWINFLAGS_ELEVATED)
         {
             /* we use a dummy WM_NCHITTEST message to check if we have access */
-            DWORD rr ;
-            if(SendMessageTimeout(win->handle,WM_NCHITTEST,0,0,SMTO_ABORTIFHUNG|SMTO_BLOCK,50,&rr))
+            DWORD_PTR rr ;
+            if(SendMessageTimeout(win->handle,WM_NCHITTEST,0,0,SMTO_ABORTIFHUNG|SMTO_BLOCK,50, &rr))
                 win->flags = (win->flags & ~vwWINFLAGS_ELEVATED) | vwWINFLAGS_ELEVATED_TEST ;
             else if(GetLastError() == ERROR_ACCESS_DENIED)
             {
@@ -2574,10 +2574,11 @@ shutDown(void)
 static int
 vwTaskbarButtonListUpdate(void)
 {
-    int ii, jj, tbCount=0, itemCount, bgsCount, psz=4 ;
+    int ii, jj, tbCount=0, bgsCount, psz=4 ;
+    LRESULT itemCount;
     vwUByte empty = ' '; 
     vwUByte *dp1, *dp2 = &empty, *bgs = &empty;
-    DWORD rSize;
+    SIZE_T rSize;
     TCITEM tcItem;
     TBBUTTON tbItem;
     HWND tbHWnd;
@@ -2585,7 +2586,8 @@ vwTaskbarButtonListUpdate(void)
     if(taskbarBCType == vwTASKBAR_BC_WIN7)
     {
         /* Win7: Msg result -> the dpa -> button groups -> button group -> buttons */
-        if((dp1 = (vwUByte *) GetWindowLong(taskbarBCHWnd,DWL_MSGRESULT)) == NULL)
+        if((dp1 = (vwUByte *) GetWindowLongPtr(taskbarBCHWnd, DWLP_MSGRESULT)) == NULL)
+        // if((dp1 = (vwUByte *) GetWindowLong(taskbarBCHWnd, DWL_MSGRESULT)) == NULL)
         {
             vwLogBasic((_T("Win7BC Err0: %d\n"),GetLastError())) ;
             return 0 ;
@@ -2597,6 +2599,7 @@ vwTaskbarButtonListUpdate(void)
         }
         else
             dp1 += DPA_DELTA_32 ;
+
         if(!vwProcessMemoryRead(taskbarProcHdl,dp1,&dp2,sizeof(void *),rSize) || (dp2 == NULL) || // the dpa
            !vwProcessMemoryRead(taskbarProcHdl,dp2,&bgsCount, sizeof(int),rSize) || // button groups count and pointer
            !vwProcessMemoryRead(taskbarProcHdl,dp2+psz,&bgs, sizeof(void *),rSize))
@@ -3179,8 +3182,7 @@ ichangeDeskProc(int newDesk, WPARAM msgWParam)
     return currentDesk ;
 }
 
-static VOID CALLBACK
-ichangeDeskTimeoutProc(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
+VOID CALLBACK ichangeDeskTimeoutProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 {
     int newDesk = ichangeDesk ;
     ichangeDesk = -1  ;
@@ -3476,7 +3478,7 @@ winListCreateItemList(int flags, vwListItem **items,int *numitems)
         if(ww == NULL)
         {
             HICON hIcon ;
-            DWORD dIcon ;
+            DWORD_PTR dIcon ;
             
             if(nDesks <= 9)
                 title[0] = _T('0')+ win->desk;
@@ -3551,7 +3553,7 @@ winListCreateItemList(int flags, vwListItem **items,int *numitems)
             }
             if(hIcon == NULL)
                 /* Failed to get an icon from the app itself, try to get the registered class icon */
-                hIcon = (HICON) GetClassLong(win->handle, GCL_HICON) ;
+                hIcon = (HICON) GetClassLongPtr(win->handle, GCLP_HICON) ;
             item->icon = hIcon ;
             if(((item->desk = win->desk) != currentDesk) && vwWindowIsNotSticky(win))
                 listContent = (winListContent & ~vwWINLIST_TITLELN) ;
@@ -5644,7 +5646,7 @@ int  temp;
             // Send over the VirtuaWin install path with WM_COPYDATA
             //  - always use a byte string so unicode/non-uncode modules can work together
             COPYDATASTRUCT cds;
-            DWORD ret ;
+            DWORD_PTR ret ;
             char *ss = (message == VW_INSTALLPATH) ? VirtuaWinPathStr:UserAppPathStr ;
             cds.dwData = 0 - message ;
             cds.cbData = strlen(ss) + 1 ;
@@ -5695,7 +5697,7 @@ int  temp;
             // Send over the VirtuaWin install path with WM_COPYDATA
             //  - always use a byte string so unicode/non-uncode modules can work together
             COPYDATASTRUCT cds;
-            DWORD ret ;
+            DWORD_PTR ret ;
 #ifdef _UNICODE
             char buff[128] ;
 #endif
@@ -6035,8 +6037,7 @@ vwWindowsIs64Bit(void)
     return ret ;
 }
 
-static VOID CALLBACK
-VirtuaWinInitContinue(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
+VOID CALLBACK VirtuaWinInitContinue(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 {
     /* finish off initialization and create the list of windows */
     DWORD threadID;
@@ -6115,7 +6116,7 @@ VirtuaWinInit(HINSTANCE hInstance, LPSTR cmdLine)
         if(cmdLine != NULL)
             sscanf(cmdLine+4,"%i %i %li",&message,&wParam,&lParam) ;
         /* post message and quit */
-        exit(SendMessage(hWnd,message,wParam,lParam)) ;
+        exit((int)SendMessage(hWnd,message,wParam,lParam)) ;
     }
     if(cmdLine != NULL)
         /* VW not running, can't post message, return error */
@@ -6269,6 +6270,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     }
     
     CloseHandle(hMutex);
-    return msg.wParam;
+    return (int)msg.wParam;
 }
 
