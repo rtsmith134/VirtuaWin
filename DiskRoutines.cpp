@@ -21,7 +21,6 @@
 //  USA.
 //
 
-#define _CRT_SECURE_NO_WARNINGS
 #define _CRT_NON_CONFORMING_SWPRINTFS
 #include "VirtuaWin.h"
 #include <stdlib.h>
@@ -94,7 +93,7 @@ static void getUserAppPath(TCHAR *path)
     TCHAR buff[MAX_PATH], *ss, *se, cc ;
     FILE *fp;
     size_t pssSize; 
-    int len ;
+    size_t len ;
 
     path[0] = '\0' ;
 
@@ -192,7 +191,7 @@ GetFilename(eFileNames filetype, int location, TCHAR *outStr)
         _T("window.cfg"),
         _T("module.cfg")
     };
-    DWORD len ;
+    size_t len ;
 
     if(UserAppPath == NULL)
     {
@@ -243,7 +242,8 @@ int
 loadDisabledModules(vwDisModule *theDisList)
 {
     TCHAR buff[MAX_PATH];
-    int len, nOfDisMod = 0;
+    size_t len = 0;
+    int nOfDisMod = 0;
     FILE *fp;
 
     GetFilename(VWMODULE_CFG,1,buff);
@@ -299,7 +299,8 @@ loadWindowConfig(void)
     vwWindowRule *wt, *pwt ;
     vwWindow *win ;
     TCHAR buff[1024], *ss ;
-    int ii, ll, mallocErr=0 ;
+    int ii, mallocErr=0 ;
+    size_t  ll = 0;
     FILE *fp ;
 
     if(windowRuleList != NULL)
@@ -473,7 +474,10 @@ loadVirtuawinConfig(void)
 {
     TCHAR buff[MAX_PATH], buff2[2048], err[40], * ss;
     FILE *fp = NULL, *wfp = NULL;
-    int ii, jj, ll, hk[4] ;
+    size_t ll;
+    int    jj;
+    int    ii;
+    int    hk[4] ;
 
     eFileNames filename;
     GetFilename(VWVIRTUAWIN_CFG,1,buff);
@@ -580,7 +584,7 @@ loadVirtuawinConfig(void)
         /* check we did not break out due to an error and virtuawin.cfg was found */
         if(filename >= VWVIRTUAWIN_CFG)
         {
-            _stprintf_s(buff2, 2048, _T("Error creating new user configuration, please check installation & file permissions.\nIf you continue to have problems, send e-mail to:\n\n    " vwVIRTUAWIN_EMAIL), buff2);
+            _stprintf_s(buff2, 2048, _T("Error creating new user configuration, please check installation & file permissions.\nIf you continue to have problems, send e-mail to:\n\n    " vwVIRTUAWIN_EMAIL));
             MessageBox(hWnd, buff2, vwVIRTUAWIN_NAME _T(" Error"), MB_ICONERROR);
             exit(1) ;
         }
