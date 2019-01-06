@@ -21,10 +21,6 @@
 //  USA.
 //
 
-// Must compile with define of _WIN32_IE=0x0200 otherwise the setup dialog
-// will not open on NT/95 without a patch (known MS issue) 
-#define _WIN32_IE 0x0200
-
 // Includes
 #include "VirtuaWin.h"
 #include "Resource.h"
@@ -37,6 +33,7 @@
 #include <shellapi.h>
 #include <prsht.h>
 #include <commctrl.h>
+#pragma comment( lib, "comctl32.lib" )
 
 /* Get the list of hotkey commands */
 #define VW_COMMAND(a, b, c, d) b ,
@@ -50,7 +47,7 @@ static unsigned char vwCommandEnum[]={
 #else
 #define VW_COMMAND(a, b, c, d) d ,
 #endif
-static TCHAR *vwCommandName[]={
+const TCHAR * vwCommandName[]={
 #include "vwCommands.def"
 } ;
 #undef  VW_COMMAND
@@ -230,8 +227,7 @@ storeDesktopProperties(void)
  * The "General" tab callback
  * This is the first callback to be called when the property sheet is created
  */
-BOOL APIENTRY
-setupGeneral(HWND hDlg, UINT message, UINT wParam, LONG lParam)
+INT_PTR CALLBACK setupGeneral(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     static int tmpDesksY;
     static int tmpDesksX;
@@ -358,14 +354,17 @@ setupGeneral(HWND hDlg, UINT message, UINT wParam, LONG lParam)
             storeDesktopProperties() ;
             
             vwSetupApply(hDlg,0x01) ;
-            SetWindowLong(hDlg, DWL_MSGRESULT, TRUE);
+            SetWindowLongPtr(hDlg, DWLP_MSGRESULT, TRUE);
+            //SetWindowLong(hDlg, DWL_MSGRESULT, TRUE);
             break;
         case PSN_KILLACTIVE: // Switch tab sheet
-            SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
+            SetWindowLongPtr(hDlg, DWLP_MSGRESULT, FALSE);
+            //SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
             return 1;
         case PSN_RESET: // Cancel
             vwSetupCancel() ;
-            SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
+            SetWindowLongPtr(hDlg, DWLP_MSGRESULT, FALSE);
+            //SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
             break;
         case PSN_HELP:
             showHelp(hDlg,_T("SetupDialog.htm#General")) ;
@@ -654,7 +653,7 @@ vwSetupHotKeysDelete(HWND hDlg)
 
 /* Message Handler for the HotKeys Tab */
 
-BOOL APIENTRY setupHotkeys(HWND hDlg, UINT message, UINT wParam, LONG lParam)
+INT_PTR CALLBACK setupHotkeys(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message) {
     case WM_INITDIALOG:
@@ -669,14 +668,17 @@ BOOL APIENTRY setupHotkeys(HWND hDlg, UINT message, UINT wParam, LONG lParam)
             break;
         case PSN_APPLY:
             vwSetupApply(hDlg,0x02) ;
-            SetWindowLong(hDlg, DWL_MSGRESULT, TRUE);
+            SetWindowLongPtr(hDlg, DWLP_MSGRESULT, TRUE);
+            //SetWindowLong(hDlg, DWL_MSGRESULT, TRUE);
             break;
         case PSN_KILLACTIVE:
-            SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
+            SetWindowLongPtr(hDlg, DWLP_MSGRESULT, FALSE);
+            //SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
             return 1;
         case PSN_RESET:
             vwSetupCancel() ;
-            SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
+            SetWindowLongPtr(hDlg, DWLP_MSGRESULT, FALSE);
+            //SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
             break;
         case PSN_HELP:
             showHelp(hDlg,_T("SetupDialog.htm#Hotkeys")) ;
@@ -745,8 +747,7 @@ BOOL APIENTRY setupHotkeys(HWND hDlg, UINT message, UINT wParam, LONG lParam)
 /*************************************************
  * Message handler for the "Mouse" tab callback
  */
-BOOL APIENTRY
-setupMouse(HWND hDlg, UINT message, UINT wParam, LONG lParam)
+INT_PTR CALLBACK setupMouse(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     TCHAR buff[5];
     
@@ -829,14 +830,17 @@ setupMouse(HWND hDlg, UINT message, UINT wParam, LONG lParam)
                 mouseModifier |= vwHOTKEY_WIN ;
             
             vwSetupApply(hDlg,0x04) ;
-            SetWindowLong(hDlg, DWL_MSGRESULT, TRUE);
+            SetWindowLongPtr(hDlg, DWLP_MSGRESULT, TRUE);
+            //SetWindowLong(hDlg, DWL_MSGRESULT, TRUE);
             break;
         case PSN_KILLACTIVE:
-            SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
+            SetWindowLongPtr(hDlg, DWLP_MSGRESULT, FALSE);
+            //SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
             return 1;
         case PSN_RESET:
             vwSetupCancel() ;
-            SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
+            SetWindowLongPtr(hDlg, DWLP_MSGRESULT, FALSE);
+            //SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
             break;
         case PSN_HELP:
             showHelp(hDlg,_T("SetupDialog.htm#Mouse")) ;
@@ -891,8 +895,7 @@ setupModulesList(HWND hDlg)
 
 /* Message handler for the Modules setup dialog */
 
-BOOL APIENTRY
-setupModules(HWND hDlg, UINT message, UINT wParam, LONG lParam)
+INT_PTR CALLBACK setupModules(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
@@ -907,13 +910,16 @@ setupModules(HWND hDlg, UINT message, UINT wParam, LONG lParam)
             // Initialize the controls.
             break;
         case PSN_APPLY:
-            SetWindowLong(hDlg, DWL_MSGRESULT, TRUE);
+            SetWindowLongPtr(hDlg, DWLP_MSGRESULT, TRUE);
+            //SetWindowLong(hDlg, DWL_MSGRESULT, TRUE);
             break;
         case PSN_KILLACTIVE:
-            SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
+            SetWindowLongPtr(hDlg, DWLP_MSGRESULT, FALSE);
+            //SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
             return 1;
         case PSN_RESET:
-            SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
+            SetWindowLongPtr(hDlg, DWLP_MSGRESULT, FALSE);
+            //SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
             break;
         case PSN_HELP:
             showHelp(hDlg,_T("SetupDialog.htm#Modules")) ;
@@ -978,8 +984,7 @@ setupModules(HWND hDlg, UINT message, UINT wParam, LONG lParam)
 /*************************************************
  * The "Expert" tab callback
  */
-BOOL APIENTRY
-setupExpert(HWND hDlg, UINT message, UINT wParam, LONG lParam)
+INT_PTR CALLBACK setupExpert(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     int oldLogFlag ;
     
@@ -1055,14 +1060,17 @@ setupExpert(HWND hDlg, UINT message, UINT wParam, LONG lParam)
                 MessageBox(hDlg, vwVIRTUAWIN_NAME _T(" must be restarted for the event logging change to take effect."),
                            vwVIRTUAWIN_NAME _T(" Note"), MB_ICONINFORMATION);
             }
-            SetWindowLong(hDlg, DWL_MSGRESULT, TRUE);
+            SetWindowLongPtr(hDlg, DWLP_MSGRESULT, TRUE);
+            //SetWindowLong(hDlg, DWL_MSGRESULT, TRUE);
             break;
         case PSN_KILLACTIVE:
-            SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
+            SetWindowLongPtr(hDlg, DWLP_MSGRESULT, FALSE);
+            //SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
             return 1;
         case PSN_RESET:
             vwSetupCancel() ;
-            SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
+            SetWindowLongPtr(hDlg, DWLP_MSGRESULT, FALSE);
+            //SetWindowLong(hDlg, DWL_MSGRESULT, FALSE);
             break;
         case PSN_HELP:
             showHelp(hDlg,_T("SetupDialog.htm#Expert")) ;
@@ -1118,8 +1126,7 @@ setupExpert(HWND hDlg, UINT message, UINT wParam, LONG lParam)
 /*************************************************
  * The "About" tab callback
  */
-BOOL APIENTRY
-setupAbout(HWND hDlg, UINT message, UINT wParam, LONG lParam)
+INT_PTR CALLBACK setupAbout(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     TCHAR license[] = _T("This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.\r\n \r\nThis program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details. \r\n \r\nYou should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.");
     
