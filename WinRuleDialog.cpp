@@ -51,7 +51,7 @@ windowRuleDialogInitList(HWND hDlg)
 
     vwWindowRule *wt ;
     TCHAR buff[388], *ss;
-    int ii, jj, kk, winRuleCurIdx=0 ;
+    int ii, winRuleCurIdx=0 ;
     
     SendDlgItemMessage(hDlg,IDC_WTYPE_LIST,LB_RESETCONTENT,0, 0);
     SendDlgItemMessage(hDlg,IDC_WTYPE_LIST,LB_SETTABSTOPS,(WPARAM) 3,(LPARAM) ts);
@@ -232,8 +232,6 @@ static void
 windowRuleDialogInit(HWND hDlg, int firstTime)
 {
     TCHAR buff[MAX_PATH] ;
-    HANDLE procHdl ;
-    DWORD procId ;
     int ii ;
     
     if(firstTime)
@@ -543,7 +541,8 @@ windowRuleDialogDelete(HWND hDlg)
 static BOOL CALLBACK
 windowRuleDialogFunc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    int ii, jj ;
+    LRESULT ii, jj ;
+    BOOL    result;
     switch (msg)
     {
     case WM_INITDIALOG:
@@ -599,9 +598,12 @@ windowRuleDialogFunc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
             break ;
         
         case IDC_WTYPE_AMOVE:
-            ii = (SendDlgItemMessage(hDlg,IDC_WTYPE_AMOVE,BM_GETCHECK,0,0) == BST_CHECKED) ;
-            EnableWindow(GetDlgItem(hDlg,IDC_WTYPE_AMDSK),ii) ;
-            EnableWindow(GetDlgItem(hDlg,IDC_WTYPE_AMIMM),ii) ;
+            if (SendDlgItemMessage(hDlg, IDC_WTYPE_AMOVE, BM_GETCHECK, 0, 0) == BST_CHECKED)
+                result = TRUE;
+            else
+                result = FALSE;
+            EnableWindow(GetDlgItem(hDlg,IDC_WTYPE_AMDSK),result) ;
+            EnableWindow(GetDlgItem(hDlg,IDC_WTYPE_AMIMM),result) ;
             break ;
         
         case IDC_WTYPE_WHIDE:
