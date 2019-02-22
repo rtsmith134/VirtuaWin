@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.27130.2010
+VisualStudioVersion = 15.0.27428.2015
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "virtuawin", "virtuawin.vcxproj", "{3517D8E1-A68F-4EB4-8B87-D3474AE599C8}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VirtuaWin10", "VirtuaWin10.vcxproj", "{3517D8E1-A68F-4EB4-8B87-D3474AE599C8}"
 	ProjectSection(ProjectDependencies) = postProject
 		{7F6B8F62-4366-47E2-9C5A-43E9630B0F3B} = {7F6B8F62-4366-47E2-9C5A-43E9630B0F3B}
 		{B7BA9773-E9AF-4306-BCC1-7B5827AA5474} = {B7BA9773-E9AF-4306-BCC1-7B5827AA5474}
