@@ -129,7 +129,7 @@ vwSetupHotKeysInitList(void)
             if(hotkeyList[ii].modifier & vwHOTKEY_EXT)
                 jj |= 0x100 ;
             GetKeyNameText(jj << 16, ss, 20);
-            SendDlgItemMessage(setupHotkeysHWnd,IDC_HOTKEY_LIST,LB_ADDSTRING,0,(LONG) buff);
+            SendDlgItemMessage(setupHotkeysHWnd,IDC_HOTKEY_LIST,LB_ADDSTRING,0,(LPARAM) buff);
         }
     }
     if(vwSetupHotkeyCur >= 0)

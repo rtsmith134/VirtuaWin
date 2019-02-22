@@ -65,7 +65,7 @@ windowRuleDialogInitList(HWND hDlg)
             ss = buff ;
             ss += _stprintf_s(ss, 388, _T("%d"), ii);
             windowRuleFormatDescription(ss, wt);
-            SendDlgItemMessage(hDlg,IDC_WTYPE_LIST,LB_ADDSTRING,0,(LONG) buff);
+            SendDlgItemMessage(hDlg,IDC_WTYPE_LIST,LB_ADDSTRING,0,(LPARAM) buff);
             if(wt == winRuleCur)
                 winRuleCurIdx = ii ;
         }
@@ -80,7 +80,8 @@ windowRuleDialogInitList(HWND hDlg)
 void 
 windowRuleFormatDescription(TCHAR* ss, vwWindowRule *wt)
 {
-    int jj, kk; 
+    int jj; 
+    size_t kk;
 
     for (jj = 0; jj<vwWTNAME_COUNT; jj++)
     {
@@ -236,17 +237,17 @@ windowRuleDialogInit(HWND hDlg, int firstTime)
     
     if(firstTime)
     {
-        SendDlgItemMessage(hDlg, IDC_WTYPE_HWACT, CB_ADDSTRING, 0, (LONG) _T("Default - configured in main Setup"));
-        SendDlgItemMessage(hDlg, IDC_WTYPE_HWACT, CB_ADDSTRING, 0, (LONG) _T("Ignore the event"));
-        SendDlgItemMessage(hDlg, IDC_WTYPE_HWACT, CB_ADDSTRING, 0, (LONG) _T("Move window to current desktop"));
-        SendDlgItemMessage(hDlg, IDC_WTYPE_HWACT, CB_ADDSTRING, 0, (LONG) _T("Show window on current desktop"));
-        SendDlgItemMessage(hDlg, IDC_WTYPE_HWACT, CB_ADDSTRING, 0, (LONG) _T("Change to window's desktop"));
-        SendDlgItemMessage(hDlg, IDC_WTYPE_WHIDE, CB_ADDSTRING, 0, (LONG) _T("Hide using standard method"));
-        SendDlgItemMessage(hDlg, IDC_WTYPE_WHIDE, CB_ADDSTRING, 0, (LONG) _T("Hide by move window"));
-        SendDlgItemMessage(hDlg, IDC_WTYPE_WHIDE, CB_ADDSTRING, 0, (LONG) _T("Hide by minimizing window"));
-        SendDlgItemMessage(hDlg, IDC_WTYPE_THIDE, CB_ADDSTRING, 0, (LONG) _T("Hide using standard method"));
-        SendDlgItemMessage(hDlg, IDC_WTYPE_THIDE, CB_ADDSTRING, 0, (LONG) _T("Show - Keep taskbar button visible"));
-        SendDlgItemMessage(hDlg, IDC_WTYPE_THIDE, CB_ADDSTRING, 0, (LONG) _T("Hide by using toolwin flag"));
+        SendDlgItemMessage(hDlg, IDC_WTYPE_HWACT, CB_ADDSTRING, 0, (LPARAM) _T("Default - configured in main Setup"));
+        SendDlgItemMessage(hDlg, IDC_WTYPE_HWACT, CB_ADDSTRING, 0, (LPARAM) _T("Ignore the event"));
+        SendDlgItemMessage(hDlg, IDC_WTYPE_HWACT, CB_ADDSTRING, 0, (LPARAM) _T("Move window to current desktop"));
+        SendDlgItemMessage(hDlg, IDC_WTYPE_HWACT, CB_ADDSTRING, 0, (LPARAM) _T("Show window on current desktop"));
+        SendDlgItemMessage(hDlg, IDC_WTYPE_HWACT, CB_ADDSTRING, 0, (LPARAM) _T("Change to window's desktop"));
+        SendDlgItemMessage(hDlg, IDC_WTYPE_WHIDE, CB_ADDSTRING, 0, (LPARAM) _T("Hide using standard method"));
+        SendDlgItemMessage(hDlg, IDC_WTYPE_WHIDE, CB_ADDSTRING, 0, (LPARAM) _T("Hide by move window"));
+        SendDlgItemMessage(hDlg, IDC_WTYPE_WHIDE, CB_ADDSTRING, 0, (LPARAM) _T("Hide by minimizing window"));
+        SendDlgItemMessage(hDlg, IDC_WTYPE_THIDE, CB_ADDSTRING, 0, (LPARAM) _T("Hide using standard method"));
+        SendDlgItemMessage(hDlg, IDC_WTYPE_THIDE, CB_ADDSTRING, 0, (LPARAM) _T("Show - Keep taskbar button visible"));
+        SendDlgItemMessage(hDlg, IDC_WTYPE_THIDE, CB_ADDSTRING, 0, (LPARAM) _T("Hide by using toolwin flag"));
         SendDlgItemMessage(hDlg, IDC_WTYPE_ENABLE,BM_SETCHECK,1,0);
         SendDlgItemMessage(hDlg, IDC_WTYPE_VMANAGE,BM_SETCHECK,1,0);
         SendDlgItemMessage(hDlg, IDC_WTYPE_HWACT, CB_SETCURSEL, 0, 0) ;
@@ -260,7 +261,7 @@ windowRuleDialogInit(HWND hDlg, int firstTime)
     for(ii=1 ; ii<=deskCount ; ii++)
     {
         _stprintf_s(buff, 260, _T("%d"), ii);
-        SendDlgItemMessage(hDlg, IDC_WTYPE_AMDSK, CB_ADDSTRING, 0, (LONG) buff) ;
+        SendDlgItemMessage(hDlg, IDC_WTYPE_AMDSK, CB_ADDSTRING, 0, (LPARAM) buff) ;
     }
     SendDlgItemMessage(hDlg, IDC_WTYPE_AMDSK, CB_SETCURSEL, 0, 0) ;
     windowRuleDialogInitList(hDlg) ;
@@ -271,7 +272,7 @@ windowRuleDialogInit(HWND hDlg, int firstTime)
 static void
 windowRuleDialogSetItem(HWND hDlg)
 {
-    int ii, jj ;
+    LRESULT ii, jj;
     
     if((ii=SendDlgItemMessage(hDlg,IDC_WTYPE_LIST,LB_GETCURSEL,0,0)) != LB_ERR)
     {
@@ -395,7 +396,8 @@ static void
 windowRuleDialogAddMod(HWND hDlg, int add)
 {
     vwWindowRule *wt ;
-    int ii, ll, mallocErr=0 ;
+    LRESULT ii;
+    int ll, mallocErr=0 ;
     TCHAR buff[1024], *ss ;
     vwUInt flags ;
     
@@ -480,7 +482,7 @@ windowRuleDialogAddMod(HWND hDlg, int add)
         {
             flags |= vwWTFLAGS_MOVE ;
             if((ii=SendDlgItemMessage(hDlg,IDC_WTYPE_AMDSK,CB_GETCURSEL,0,0)) != CB_ERR)
-                wt->desk = ii + 1 ;
+                wt->desk = (vwUByte)ii + 1 ;
         }
         if(SendDlgItemMessage(hDlg,IDC_WTYPE_AMIMM,BM_GETCHECK,0,0) == BST_CHECKED)
             flags |= vwWTFLAGS_MOVE_IMMEDIATE ;
