@@ -29,6 +29,14 @@ if [ `uname | sed -e "s/^MINGW.*/MINGW/"` == 'MINGW' ] ; then
     CDRIVE="/c"
 fi
 
+# if uname returns MSYS_NT-10.0 or something like that then we are working with MSYS2
+if [ `uname | sed -e "s/^MSYS_NT*/MSYS_NT/"` == 'MSYS_NT' ] ; then
+    SLASH="//"
+    SED="sed -c"
+    CDRIVE="/c"
+fi
+
+# default to emacs editor
 if [ -z "$EDITOR" ] ; then
     EDITOR=emacs
 fi

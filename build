@@ -19,7 +19,7 @@ do
         echo ""
         echo "Where options can be:-"
         echo "   -C   : Build clean."
-        echo "   -d   : For debug build (output is VirtuaWinD.exe)."
+        echo "   -d   : For debug build (output is VirtuaWin10D.exe)."
         echo "   -h   : For this help page."
         echo "   -l <logfile>"
         echo "        : Set the compile log file."

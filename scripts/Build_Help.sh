@@ -19,22 +19,36 @@
 # for cygwin's sed and -c for msys.
 SLASH="/"
 CDRIVE="/cygdrive/c"
-VWPROGRAMFILES="${CDRIVE}/Program Files (x86)"
+
+
 # if the uname contains MINGW then we are using msys so change CDRIVE
 if [ `uname | sed -e "s/^MINGW.*/MINGW/"` == 'MINGW' ] ; then
+    echo "System is MSYS"
     SLASH="//"
     CDRIVE="/c"
 fi
 
+# if uname returns MSYS_NT-10.0 or something like that then we are working with MSYS2
+MYSYSTEM=`uname | sed -e "s/^MSYS_NT.*/MSYS_NT/"`
+if [ $MYSYSTEM == 'MSYS_NT' ] ; then
+    echo "System is MSYS2"
+    SLASH="//"
+    SED="sed -c"
+    CDRIVE="/c"
+fi
+
+VWPROGRAMFILES="${CDRIVE}/Program Files (x86)"
+echo "VWPROGRAMFILES is " $VWPROGRAMFILES
+HELPCOMPILER="${VWPROGRAMFILES}/HTML Help Workshop/hhc.exe"
+echo "HELPCOMPILER is " $HELPCOMPILER
+
 if [ -z "$EDITOR" ] ; then
     EDITOR=emacs
 fi
-if [ -z "$HELPCOMPILER" ] ; then
-    HELPCOMPILER="${VWPROGRAMFILES}/HTML Help Workshop/hhc"
-fi
-if [ -z "$SETUPCOMPILER" ] ; then
-    SETUPCOMPILER="${VWPROGRAMFILES}/Inno Setup 5/Compil32"
-fi
+
+SETUPCOMPILER="${VWPROGRAMFILES}/Inno Setup 5/Compil32"
+echo $SETUPCOMPILER
+
 if [ -z "$WINZIP" ] ; then
     WINZIP="${VWPROGRAMFILES}/WinZip/wzzip"
 fi

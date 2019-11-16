@@ -28,13 +28,22 @@ if [ `uname | sed -e "s/^MINGW.*/MINGW/"` == 'MINGW' ] ; then
     SED="sed -c"
     CDRIVE="/c"
 fi
-if [ -z "$VWPROGRAMFILES" ] ; then
-    if [ -z "$PROGRAMW6432" ] ; then
-        VWPROGRAMFILES="${CDRIVE}/Program Files"
-    else
-        VWPROGRAMFILES="${CDRIVE}/Program Files (x86)"
-    fi
+
+# if uname returns MSYS_NT-10.0 or something like that then we are working with MSYS2
+if [ `uname | sed -e "s/^MSYS_NT*/MSYS_NT/"` == 'MSYS_NT' ] ; then
+    SLASH="//"
+    SED="sed -c"
+    CDRIVE="/c"
 fi
+
+#if [ -z "$VWPROGRAMFILES" ] ; then
+#    if [ -z "$PROGRAMW6432" ] ; then
+#        VWPROGRAMFILES="${CDRIVE}/Program Files"
+#    else
+        VWPROGRAMFILES="${CDRIVE}/Program Files (x86)"
+#    fi
+#fi
+
 if [ -z "$EDITOR" ] ; then
     EDITOR=emacs
 fi
@@ -57,7 +66,7 @@ if [ -z "$1" ] ; then
     exit -1
 fi
 if [ "$1" == "-TEST" ] ; then
-    if [ ! -r VirtuaWin.c ] ; then
+    if [ ! -r VirtuaWin.cpp ] ; then
         echo "Test Usage Error: must run script from the source directory"
         exit -1
     fi
@@ -81,18 +90,15 @@ if [ -n "$ver_lbl" ] ; then
     file_ver="${file_ver}_${ver_lbl}"
 fi
 
-echo Creating VirtuaWin package: $version - $file_ver
+echo Creating VirtuaWin10 package: $version - $file_ver
 
 if [ -z "$TEST_PACKAGE" ] ; then
     mkdir -p ./$file_ver
     cd ./$file_ver
-
-    cvs checkout README.TXT
-    cvs update -d
 fi
 
 if [ -z "$ver_bno" ] ; then
-    ver_bno=`grep FILEVERSION VirtuaWin.rc | awk -F"," '{ print $4+1 }'`
+    ver_bno=`grep FILEVERSION ../VirtuaWin.rc | awk -F"," '{ print $4+1 }'`
 fi
 echo Build: $ver_bno
 
@@ -108,33 +114,38 @@ mkdir -p tmp/portable_unicode/modules
 mkdir -p tmp/portable_unicode/icons
 mkdir -p tmp/unicode
 
-cat Defines.h | ${SED} -e "s/vwVIRTUAWIN_NAME_VERSION _T(\"VirtuaWin v.*\")/vwVIRTUAWIN_NAME_VERSION _T(\"VirtuaWin v$version\")/" > Defines.h.tmp
-mv Defines.h.tmp Defines.h
-cat VirtuaWin.rc | ${SED} -e "s/^ FILEVERSION .*/ FILEVERSION ${ver_mjr},${ver_mnr},${ver_rev},${ver_bno}/" > VirtuaWin.rc.tmp
+cp -r ../Help .
+cat ./Help/VirtuaWin_Overview.htm | ${SED} -e "s/VirtuaWin v[.0-9]* Help/VirtuaWin v${ver_mjr}.${ver_mnr} Help/" > ./Help/VirtuaWin_Overview.htm
+cd Help
+"$HELPCOMPILER" virtuawin.hhp
+cd ..
+exit
+
+cat ../Defines.h | ${SED} -e "s/vwVIRTUAWIN_NAME_VERSION _T(\"VirtuaWin v.*\")/vwVIRTUAWIN_NAME_VERSION _T(\"VirtuaWin v$version\")/" > Defines.h
+cat ../VirtuaWin.rc | ${SED} -e "s/^ FILEVERSION .*/ FILEVERSION ${ver_mjr},${ver_mnr},${ver_rev},${ver_bno}/" > VirtuaWin.rc.tmp
 cat VirtuaWin.rc.tmp | ${SED} -e "s/^ PRODUCTVERSION .*/ PRODUCTVERSION ${ver_mjr},${ver_mnr},${ver_rev},${ver_bno}/" > VirtuaWin.rc
-cat VirtuaWin.rc | ${SED} -e "s/ VALUE \"FileVersion\", \"[.0-9]*\\\\0\"/ VALUE \"FileVersion\", \"${ver_mjr}.${ver_mnr}.${ver_rev}.${ver_bno}\\\\0\"/" > VirtuaWin.rc.tmp
+cat ../VirtuaWin.rc | ${SED} -e "s/ VALUE \"FileVersion\", \"[.0-9]*\\\\0\"/ VALUE \"FileVersion\", \"${ver_mjr}.${ver_mnr}.${ver_rev}.${ver_bno}\\\\0\"/" > VirtuaWin.rc.tmp
 cat VirtuaWin.rc.tmp | ${SED} -e "s/ VALUE \"ProductVersion\", \"[.0-9]*\\\\0\"/ VALUE \"ProductVersion\", \"${ver_mjr}.${ver_mnr}.${ver_rev}.${ver_bno}\\\\0\"/" > VirtuaWin.rc
-rm VirtuaWin.rc.tmp
-cat vwHook.rc | ${SED} -e "s/^ FILEVERSION .*/ FILEVERSION ${ver_mjr},${ver_mnr},${ver_rev},${ver_bno}/" > vwHook.rc.tmp
+rm  VirtuaWin.rc.tmp
+cat ../vwHook.rc | ${SED} -e "s/^ FILEVERSION .*/ FILEVERSION ${ver_mjr},${ver_mnr},${ver_rev},${ver_bno}/" > vwHook.rc.tmp
 cat vwHook.rc.tmp | ${SED} -e "s/^ PRODUCTVERSION .*/ PRODUCTVERSION ${ver_mjr},${ver_mnr},${ver_rev},${ver_bno}/" > vwHook.rc
-cat vwHook.rc | ${SED} -e "s/ VALUE \"FileVersion\", \"[.0-9]*\\\\0\"/ VALUE \"FileVersion\", \"${ver_mjr}.${ver_mnr}.${ver_rev}.${ver_bno}\\\\0\"/" > vwHook.rc.tmp
+cat ../vwHook.rc | ${SED} -e "s/ VALUE \"FileVersion\", \"[.0-9]*\\\\0\"/ VALUE \"FileVersion\", \"${ver_mjr}.${ver_mnr}.${ver_rev}.${ver_bno}\\\\0\"/" > vwHook.rc.tmp
 cat vwHook.rc.tmp | ${SED} -e "s/ VALUE \"ProductVersion\", \"[.0-9]*\\\\0\"/ VALUE \"ProductVersion\", \"${ver_mjr}.${ver_mnr}.${ver_rev}.${ver_bno}\\\\0\"/" > vwHook.rc
-rm vwHook.rc.tmp
-cat Help/VirtuaWin_Overview.htm | ${SED} -e "s/VirtuaWin v[.0-9]* Help/VirtuaWin v${ver_mjr}.${ver_mnr} Help/" > Help/VirtuaWin_Overview.htm.tmp
-mv Help/VirtuaWin_Overview.htm.tmp Help/VirtuaWin_Overview.htm
-cat WinList/winlist.rc | ${SED} -e "s/^CAPTION \"WinList v.*\"/CAPTION \"WinList v$version\"/" > WinList/winlist.rc.tmp
-mv WinList/winlist.rc.tmp WinList/winlist.rc
-cat scripts/virtuawin.iss | ${SED} -e "s/^AppVerName=VirtuaWin v.*/AppVerName=VirtuaWin v$version/" > scripts/virtuawin.iss.tmp
-mv scripts/virtuawin.iss.tmp scripts/virtuawin.iss
+rm  vwHook.rc.tmp
+
+cat ../WinList/winlist.rc | ${SED} -e "s/^CAPTION \"WinList v.*\"/CAPTION \"WinList v$version\"/" > WinList/winlist.rc
+
+cat ../scripts/virtuawin.iss | ${SED} -e "s/^AppVerName=VirtuaWin v.*/AppVerName=VirtuaWin v$version/" > scripts/virtuawin.iss
+
 $EDITOR HISTORY.TXT
-cp Defines.h Messages.h Module/
+cp  ../Defines.h 
+cp  ../Messages.h 
+cp  ../Module/
 read -p "Compile source? [y/n] " -n 1
 echo
 if [ $REPLY == 'y' ] ; then
     echo compiling helpfile
-    cd Help
-    "$HELPCOMPILER" virtuawin.hhp
-    cd ..
+
     echo building standard
     make -f Makefile spotless
     make -f Makefile
@@ -143,7 +154,7 @@ if [ $REPLY == 'y' ] ; then
     make -f Makefile
     cd ..
     echo copying standard
-    cp ./VirtuaWin.exe ./tmp/standard/
+    cp ./VirtuaWin10.exe ./tmp/standard/
     cp ./vwHook.dll ./tmp/standard/
     cp ./Icons/1[0-9].ico ./tmp/standard/
     cp ./Icons/20.ico ./tmp/standard/
