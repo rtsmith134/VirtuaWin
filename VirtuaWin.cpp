@@ -203,7 +203,7 @@ HWND    taskbarBCHWnd;
 HANDLE  taskbarProcHdl;
 LPVOID  taskbarShrdMem;
 HWND   *taskbarButtonList = NULL ;
-int     taskbarButtonListSize = 0 ;     
+LRESULT taskbarButtonListSize = 0 ;     
 
 #define vwTASKBAR_BC_NONE       0    // None - no dynamic update
 #define vwTASKBAR_BC_TABCONTROL 1    // Win 2000
@@ -231,7 +231,7 @@ vwUInt updateCounter=0;
 
 /* desk image generation variables */
 int         deskImageCount=-1 ;
-int         deskImageEnabled=0 ;
+LPARAM      deskImageEnabled=0 ;
 HBITMAP     deskImageBitmap=NULL ;
 BITMAPINFO  deskImageInfo ;
 void       *deskImageData=NULL ;
@@ -680,7 +680,7 @@ vwIconSet(LONG_PTR deskNumber, int hungCount)
             _tcscpy(nIconD.szTip,vwVIRTUAWIN_NAME _T(" - Disabled")); /* Tooltip */
         else
         {
-            ll += _stprintf(nIconD.szTip+ll,_T("Desktop %d"),deskNumber) ;
+            ll += _stprintf(nIconD.szTip+ll,_T("Desktop %Id"),deskNumber) ;
             if(desktopName[deskNumber] != NULL)
             {
                 nIconD.szTip[ll++] = ':' ;
@@ -2848,10 +2848,10 @@ monitorTimerProc(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
 static int
 ichangeDeskProc(int newDesk, WPARAM msgWParam)
 {
-    HWND activeHWnd, lzh ;
+    HWND      activeHWnd, lzh ;
     vwWindow *win, *bwn ;
-    vwUInt activeZOrder=0, cno, czo, bno, bzo, lno, lzo ;
-    int notHung ;
+    vwUInt    activeZOrder=0, cno, czo, bno, bzo, lno, lzo ;
+    LRESULT   notHung ;
     
     vwLogBasic((_T("Step Desk Start: %d -> %d (%d,%x)\n"),currentDesk,newDesk,isDragging,(int)dragHWnd)) ;
     
@@ -3637,8 +3637,8 @@ winListCreateMenuTitleLine(HMENU hMenu, MENUITEMINFO *minfo, int offset, int des
     SetMenuItemInfo(hMenu,offset+desktopNo,FALSE,minfo) ;
 }
 
-static HMENU
-winListCreateMenu(int flags, int itemCount, vwListItem **items)
+// Called when you left click on the icon in the system-tray
+static HMENU winListCreateMenu(int flags, int itemCount, vwListItem **items)
 {
     MENUITEMINFO minfo ;
     HMENU hMenu ;
@@ -4705,12 +4705,13 @@ renderMenuItem(DRAWITEMSTRUCT* ditem)
 {
     vwListItem* item;
     HGDIOBJ menufont,oldfont;
-    HICON icon;
-    UINT oldalign;
+    HICON   icon;
+    UINT    oldalign;
     HGDIOBJ focusbrush,oldbrush;
     HGDIOBJ oldpen;
-    SIZE size;
-    int backgroundcolor,textcolor, ll;
+    SIZE    size;
+    int     backgroundcolor, textcolor;
+    size_t  ll;
 
     item = (vwListItem *) ditem->itemData;
 
