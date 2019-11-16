@@ -1,0 +1,13 @@
+version: 5.0.{build}
+pull_requests:
+  do_not_increment_build_number: true
+skip_tags: true
+image: Visual Studio 2017
+clone_depth: 1
+build_script:
+- cmd: Setup\__MakeFinal.bat
+test: off
+only_commits:
+  files:
+    - Src/
+    - Localization/
