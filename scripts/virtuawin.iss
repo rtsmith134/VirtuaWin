@@ -27,8 +27,8 @@ Name: {app}\icons; Flags: uninsalwaysuninstall
 Name: {app}\modules; Flags: uninsalwaysuninstall
 
 [Files]
-Source: VirtuaWin.exe; DestDir: {app}
-Source: VirtuaWin.chm; DestDir: {app}
+Source: VirtuaWin10.exe; DestDir: {app}
+Source: VirtuaWin10.chm; DestDir: {app}
 Source: vwHook.dll; DestDir: {app}
 Source: 10.ico; DestDir: {app}\icons\
 Source: 11.ico; DestDir: {app}\icons\
@@ -47,10 +47,10 @@ Source: HISTORY.TXT; DestDir: {app}
 Source: README.TXT; DestDir: {app}; Flags: isreadme
 
 [Icons]
-Name: {commonstartup}\VirtuaWin; Filename: {app}\VirtuaWin.exe; Tasks: autostart\common
-Name: {userstartup}\VirtuaWin; Filename: {app}\VirtuaWin.exe; Tasks: autostart\user
-Name: {group}\VirtuaWin; Filename: {app}\VirtuaWin.exe
-Name: {group}\Help; Filename: {app}\VirtuaWin.chm
+Name: {commonstartup}\VirtuaWin10; Filename: {app}\VirtuaWin10.exe; Tasks: autostart\common
+Name: {userstartup}\VirtuaWin10; Filename: {app}\VirtuaWin10.exe; Tasks: autostart\user
+Name: {group}\VirtuaWin10; Filename: {app}\VirtuaWin10.exe
+Name: {group}\Help; Filename: {app}\VirtuaWin10.chm
 Name: {group}\Readme; Filename: {app}\README.TXT
 Name: {group}\History; Filename: {app}\HISTORY.TXT
 Name: {group}\Uninstall; Filename: {uninstallexe}
@@ -59,7 +59,7 @@ Name: {group}\Uninstall; Filename: {uninstallexe}
 Filename: {app}\VirtuaWin.exe; WorkingDir: {app}; Description: {cm:LaunchProgram,VirtuaWin}; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
-Type: files; Name: {app}\virtuawin.cfg
+Type: files; Name: {app}\virtuawin10.cfg
 Type: files; Name: {app}\window.cfg
 Type: files; Name: {app}\module.cfg
 Type: files; Name: {app}\userpath.cfg

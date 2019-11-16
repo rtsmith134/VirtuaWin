@@ -38,13 +38,19 @@ const IID IID_IVirtualDesktopNotification = {
 #define APPLICATION_VIEW_CLOAK_TYPE UINT
 #define IApplicationViewPosition UINT
 
-// struct IApplicationView : public IUnknown
-DECLARE_INTERFACE_IID_(IApplicationView, IUnknown, "9ac0b5c8-1484-4c5b-9533-4134a0f97cea")
+// Computer\HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Interface\{372E1D3B-38D3-42E4-A15B-8AB2B178F513}
+// Found with searching "IApplicationView" in the registry. 
+DECLARE_INTERFACE_IID_(IApplicationView, IInspectable, "372E1D3B-38D3-42E4-A15B-8AB2B178F513")
 {
 	/*** IUnknown methods ***/
 	STDMETHOD(QueryInterface)(THIS_ REFIID riid, LPVOID FAR* ppvObject) PURE;
 	STDMETHOD_(ULONG, AddRef)(THIS) PURE;
 	STDMETHOD_(ULONG, Release)(THIS) PURE;
+
+    /*** IInspectable methods ***/
+    STDMETHOD(GetIids)(__RPC__out ULONG *iidCount, __RPC__deref_out_ecount_full_opt(*iidCount) IID **iids) PURE;
+    STDMETHOD(GetRuntimeClassName)(__RPC__deref_out_opt HSTRING *className) PURE;
+    STDMETHOD(GetTrustLevel)(__RPC__out TrustLevel *trustLevel) PURE;
 
 	/*** IApplicationView methods ***/
 	STDMETHOD(SetFocus)(THIS) PURE;
@@ -74,12 +80,12 @@ DECLARE_INTERFACE_IID_(IApplicationView, IUnknown, "9ac0b5c8-1484-4c5b-9533-4134
 	STDMETHOD(CanReceiveInput)(THIS_ BOOL*) PURE;
 	STDMETHOD(GetCompatibilityPolicyType)(THIS_ APPLICATION_VIEW_COMPATIBILITY_POLICY*) PURE;
 	STDMETHOD(SetCompatibilityPolicyType)(THIS_ APPLICATION_VIEW_COMPATIBILITY_POLICY) PURE;
-	STDMETHOD(GetPositionPriority)(THIS_ IShellPositionerPriority**) PURE;
-	STDMETHOD(SetPositionPriority)(THIS_ IShellPositionerPriority*) PURE;
+    //STDMETHOD(GetPositionPriority)(THIS_ IShellPositionerPriority**) PURE; // removed in 1803
+    //STDMETHOD(SetPositionPriority)(THIS_ IShellPositionerPriority*) PURE; // removed in 1803
 	STDMETHOD(GetSizeConstraints)(THIS_ IImmersiveMonitor*, SIZE*, SIZE*) PURE;
 	STDMETHOD(GetSizeConstraintsForDpi)(THIS_ UINT, SIZE*, SIZE*) PURE;
 	STDMETHOD(SetSizeConstraintsForDpi)(THIS_ const UINT*, const SIZE*, const SIZE*) PURE;
-	STDMETHOD(QuerySizeConstraintsFromApp)(THIS) PURE;
+    //STDMETHOD(QuerySizeConstraintsFromApp)(THIS) PURE; // removed in 1803
 	STDMETHOD(OnMinSizePreferencesUpdated)(THIS_ HWND) PURE;
 	STDMETHOD(ApplyOperation)(THIS_ IApplicationViewOperation*) PURE;
 	STDMETHOD(IsTray)(THIS_ BOOL*) PURE;
@@ -88,13 +94,26 @@ DECLARE_INTERFACE_IID_(IApplicationView, IUnknown, "9ac0b5c8-1484-4c5b-9533-4134
 	STDMETHOD(Flash)(THIS) PURE;
 	STDMETHOD(GetRootSwitchableOwner)(THIS_ IApplicationView**) PURE;
 	STDMETHOD(EnumerateOwnershipTree)(THIS_ IObjectArray**) PURE;
-	/*** (Windows 10 Build 10584 or later?) ***/
 	STDMETHOD(GetEnterpriseId)(THIS_ PWSTR*) PURE;
 	STDMETHOD(IsMirrored)(THIS_ BOOL*) PURE;
+
+    STDMETHOD(Unknown1)(THIS_ int*) PURE;
+    STDMETHOD(Unknown2)(THIS_ int*) PURE;
+    STDMETHOD(Unknown3)(THIS_ int*) PURE;
+    STDMETHOD(Unknown4)(THIS_ int) PURE;
+    STDMETHOD(Unknown5)(THIS_ int*) PURE;
+    STDMETHOD(Unknown6)(THIS_ int) PURE;
+    STDMETHOD(Unknown7)(THIS) PURE;
+    STDMETHOD(Unknown8)(THIS_ int*) PURE;
+    STDMETHOD(Unknown9)(THIS_ int) PURE;
+    STDMETHOD(Unknown10)(THIS_ int, int) PURE;
+    STDMETHOD(Unknown11)(THIS_ int) PURE;
+    STDMETHOD(Unknown12)(THIS_ SIZE*) PURE;
 };
 
 const __declspec(selectany) IID & IID_IApplicationView = __uuidof(IApplicationView);
 
+// In registry: Computer\HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Interface\{2C08ADF0-A386-4B35-9250-0FE183476FCC}
 DECLARE_INTERFACE_IID_(IVirtualDesktopPinnedApps, IUnknown, "4ce81583-1e4c-4632-a621-07a53543148f")
 {
 	/*** IUnknown methods ***/
@@ -116,7 +135,7 @@ DECLARE_INTERFACE_IID_(IVirtualDesktopPinnedApps, IUnknown, "4ce81583-1e4c-4632-
 #define IImmersiveApplication UINT
 #define IApplicationViewChangeListener UINT
 
-DECLARE_INTERFACE_IID_(IApplicationViewCollection, IUnknown, "2C08ADF0-A386-4B35-9250-0FE183476FCC")
+DECLARE_INTERFACE_IID_(IApplicationViewCollection, IUnknown, "1841C6D7-4F9D-42C0-AF41-8747538F10E5")
 {
 	/*** IUnknown methods ***/
 	STDMETHOD(QueryInterface)(THIS_ REFIID riid, LPVOID FAR* ppvObject) PURE;
@@ -131,9 +150,12 @@ DECLARE_INTERFACE_IID_(IApplicationViewCollection, IUnknown, "2C08ADF0-A386-4B35
 	STDMETHOD(GetViewForApplication)(THIS_ IImmersiveApplication*, IApplicationView**) PURE;
 	STDMETHOD(GetViewForAppUserModelId)(THIS_ PCWSTR, IApplicationView**) PURE;
 	STDMETHOD(GetViewInFocus)(THIS_ IApplicationView**) PURE;
+    // Unknown1 Added in Windows 10 version 1809
+    STDMETHOD(Unknown1)(THIS_ IApplicationView**) PURE;
 	STDMETHOD(RefreshCollection)(THIS) PURE;
 	STDMETHOD(RegisterForApplicationViewChanges)(THIS_ IApplicationViewChangeListener*, DWORD*) PURE;
-	STDMETHOD(RegisterForApplicationViewPositionChanges)(THIS_ IApplicationViewChangeListener*, DWORD*) PURE;
+    // Removed in 1809
+    // STDMETHOD(RegisterForApplicationViewPositionChanges)(THIS_ IApplicationViewChangeListener*, DWORD*) PURE;
 	STDMETHOD(UnregisterForApplicationViewChanges)(THIS_ DWORD) PURE;
 };
 

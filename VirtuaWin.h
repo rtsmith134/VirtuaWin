@@ -23,6 +23,7 @@
 //  USA.
 //
 
+#define  WIN10
 
 #include <windows.h>
 #include <stdio.h>
@@ -30,6 +31,7 @@
 
 #include "Defines.h"
 #include "Resource.h"
+
 
 /* externally accessible variables */
 extern HWND hWnd;                                 // The handle to VirtuaWin 
